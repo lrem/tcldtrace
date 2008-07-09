@@ -7,6 +7,8 @@
 
 #define MAX_HANDLES	32
 
+#define COMMAND		Tcl_GetString(objv[0])
+
 #include <dtrace.h>
 #include <libproc.h>
 #include <tcl.h>

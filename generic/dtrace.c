@@ -10,6 +10,8 @@ char *index_to_handle (const int index)
 
 int handle_to_index (const char *handle)
 {
+	if(strncmp(handle, "dtrace_handle", 13) != 0)
+		return -1;
 	return atoi(handle + 13);
 }
 
@@ -17,7 +19,7 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 	if(handles_count == MAX_HANDLES)
 	{
-		Tcl_AppendResult(interp, "::dtrace::open max handles reached",
+		Tcl_AppendResult(interp, COMMAND, " max handles reached",
 				NULL);
 		Tcl_SetErrorCode(interp, ERROR_CLASS, "MAX_HANDLES", NULL);
 		return TCL_ERROR;
@@ -29,9 +31,17 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 	if(objc > 1)
 	{
 		int i = objc - 1;
-		if(strcmp(Tcl_GetString(objv[i]), "0") == 0)
+
+		if(objc - i == 1 && strcmp(Tcl_GetString(objv[i]), "0") == 0)
 		{
 			flags |= DTRACE_O_NODEV;
+		}
+
+		if(objc - i > 1)
+		{
+			Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+			Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+			return TCL_ERROR;
 		}
 	}
 
@@ -39,7 +49,7 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 
 	if(handles[handles_count] == NULL)
 	{
-		Tcl_AppendResult(interp, "::dtrace::open libdtrace error: ",
+		Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
 				dtrace_errmsg(NULL, error), NULL);
 		char errnum[16];
 		snprintf(errnum, 16, "%d", error);
@@ -57,9 +67,16 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 	int index = handle_to_index(Tcl_GetString(objv[1]));
 
+	if(objc != 2)
+	{
+		Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+		return TCL_ERROR;
+	}
+
 	if(index < 0 || handles[index] == NULL)
 	{
-		Tcl_AppendResult(interp, "::dtrace::close bad handle", NULL);
+		Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
 		Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
 		return TCL_ERROR;
 	}
