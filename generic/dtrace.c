@@ -15,78 +15,6 @@ int handle_to_index (const char *handle)
 	return atoi(handle + 13);
 }
 
-int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
-{
-	if(handles_count == MAX_HANDLES)
-	{
-		Tcl_AppendResult(interp, COMMAND, " max handles reached",
-				NULL);
-		Tcl_SetErrorCode(interp, ERROR_CLASS, "MAX_HANDLES", NULL);
-		return TCL_ERROR;
-	}
-
-	int flags = 0;
-	int error;
-
-	if(objc > 1)
-	{
-		int i = objc - 1;
-
-		if(objc - i == 1 && strcmp(Tcl_GetString(objv[i]), "0") == 0)
-		{
-			flags |= DTRACE_O_NODEV;
-		}
-
-		if(objc - i > 1)
-		{
-			Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
-			Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-			return TCL_ERROR;
-		}
-	}
-
-	handles[handles_count] = dtrace_open(DTRACE_VERSION, flags, &error);
-
-	if(handles[handles_count] == NULL)
-	{
-		Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-				dtrace_errmsg(NULL, error), NULL);
-		char errnum[16];
-		snprintf(errnum, 16, "%d", error);
-		Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-		return TCL_ERROR;
-	}
-
-	Tcl_SetResult(interp, index_to_handle(handles_count), TCL_VOLATILE);
-	handles_count++;
-
-	return TCL_OK;
-}
-
-int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
-{
-	int index = handle_to_index(Tcl_GetString(objv[1]));
-
-	if(objc != 2)
-	{
-		Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
-		Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-		return TCL_ERROR;
-	}
-
-	if(index < 0 || handles[index] == NULL)
-	{
-		Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
-		Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
-		return TCL_ERROR;
-	}
-
-	dtrace_close(handles[index]);
-	handles[index] = NULL;
-
-	return TCL_OK;
-}
-
 char *get_option(int index, const char *option)
 {
 	static char value [12];
@@ -127,6 +55,92 @@ int set_option(int index, const char *option, const char *value)
 		}
 	}
 	return 1;
+}
+
+int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+	if(handles_count == MAX_HANDLES)
+	{
+		Tcl_AppendResult(interp, COMMAND, " max handles reached",
+				NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "MAX_HANDLES", NULL);
+		return TCL_ERROR;
+	}
+
+	int flags = 0;
+	int error;
+
+	if(objc > 1 && objc % 2 == 0)
+	{
+		char *last = Tcl_GetString(objv[objc - 1]);
+		
+		if(last[0] == '1')
+		{
+			flags |= DTRACE_O_NODEV;
+		}
+
+		if(strlen(last) != 1)
+		{
+			Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+			Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+			return TCL_ERROR;
+		}
+	}
+
+	handles[handles_count] = dtrace_open(DTRACE_VERSION, flags, &error);
+
+	if(handles[handles_count] == NULL)
+	{
+		Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+				dtrace_errmsg(NULL, error), NULL);
+		char errnum[16];
+		snprintf(errnum, 16, "%d", error);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+		return TCL_ERROR;
+	}
+
+	for(int i = 1; i < objc - 1; i+=2)
+	{
+		if(set_option(handles_count, Tcl_GetString(objv[i]), 
+					Tcl_GetString(objv[i+1])) == 0)
+		{
+			Tcl_AppendResult(interp, COMMAND, 
+					" bad option initialization ",
+					Tcl_GetString(objv[i]), NULL);
+			Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", 
+					NULL);
+			return TCL_ERROR;
+		}
+	}
+
+	Tcl_SetResult(interp, index_to_handle(handles_count), TCL_VOLATILE);
+	handles_count++;
+
+	return TCL_OK;
+}
+
+int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+	int index = handle_to_index(Tcl_GetString(objv[1]));
+
+	if(objc != 2)
+	{
+		Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+		return TCL_ERROR;
+	}
+
+	if(index < 0 || handles[index] == NULL)
+	{
+		Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+		return TCL_ERROR;
+	}
+
+	dtrace_close(handles[index]);
+	handles[index] = NULL;
+
+	return TCL_OK;
 }
 
 int Conf (ClientData cd, Tcl_Interp *interp, int objc, 
