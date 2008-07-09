@@ -109,6 +109,26 @@ char *get_option(int index, const char *option)
 	return value;
 }
 
+int set_option(int index, const char *option, const char *value)
+{
+	if(internal_option(option))
+	{
+		/* Only one defined for now. */
+		if(value[0] == '0' && value[1] == 0)
+			options[index].foldpdesc = 0;
+		else
+			options[index].foldpdesc = 1;
+	}
+	else
+	{
+		if(dtrace_setopt(handles[index], option+1, value) != 0)
+		{
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int Conf (ClientData cd, Tcl_Interp *interp, int objc, 
 		Tcl_Obj *const objv[])
 {
@@ -173,6 +193,17 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc,
 	}
 
 	/* We got a list of options to set, empty string to return. */
+	for(int i = 2; i < objc-1; i+=2)
+	{
+		if(set_option(index, Tcl_GetString(objv[i]), 
+					Tcl_GetString(objv[i+1])) == 0)
+		{
+			Tcl_AppendResult(interp, COMMAND, " bad option change ",
+					Tcl_GetString(objv[i]), NULL);
+			Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
+			return TCL_ERROR;
+		}
+	}
 	return TCL_OK;
 }
 
