@@ -16,6 +16,14 @@
 int handles_count = 0;
 dtrace_hdl_t *handles [MAX_HANDLES];
 
+#define internal_option(a) (strcmp(a, "-foldpdesc") == 0)
+typedef struct options_s
+{
+	int foldpdesc;
+}
+options_t;
+options_t options [MAX_HANDLES];
+
 extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
 		Tcl_NamespaceDeleteProc*);
 

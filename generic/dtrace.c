@@ -87,6 +87,62 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 	return TCL_OK;
 }
 
+int Conf (ClientData cd, Tcl_Interp *interp, int objc, 
+		Tcl_Obj *const objv[])
+{
+	if(objc == 1)
+	{
+		Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+		return TCL_ERROR;
+	}
+	int index = handle_to_index(Tcl_GetString(objv[1]));
+	if(index < 0 || handles[index] == NULL)
+	{
+		Tcl_AppendResult(interp, COMMAND, " bad handle", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+		return TCL_ERROR;
+	}
+	if(objc == 2)
+	{
+		/* Return the set of so called "basic options".
+		 * These are a little arbitrary, listed on:
+		 * http://dev.lrem.net/tcldtrace/wiki/CommandsList
+		 */
+		return TCL_OK;
+	}
+	if(objc == 3)
+	{
+		char *option = Tcl_GetString(objv[2]);
+		char value[12];
+		if(internal_option(option))
+		{
+			/* Only one defined for now. */
+			snprintf(value, 12, "%d", options[index].foldpdesc);
+		}
+		else
+		{
+			dtrace_optval_t opt;
+			if(dtrace_getopt(handles[index], option, &opt) != 0)
+			{
+				Tcl_AppendResult(interp, COMMAND, 
+						" bad option ", option, NULL);
+				Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION",
+						NULL);
+				return TCL_ERROR;
+			}
+			if(opt == DTRACEOPT_UNSET)
+				opt = 0;
+			snprintf(value, 12, "%d", opt);
+		}
+		Tcl_SetResult(interp, value, TCL_VOLATILE);
+		return TCL_OK;
+	}
+
+	/* We got a list of options to set, empty string to return. */
+	return TCL_OK;
+}
+
 int Dtrace_Init (Tcl_Interp *interp)
 {
 	Tcl_Namespace *namespace;
@@ -113,8 +169,9 @@ int Dtrace_Init (Tcl_Interp *interp)
 
 	Tcl_CreateObjCommand(interp, NS "::open", (Tcl_ObjCmdProc *) Open,
 			(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
-
 	Tcl_CreateObjCommand(interp, NS "::close", (Tcl_ObjCmdProc *) Close,
+			(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+	Tcl_CreateObjCommand(interp, NS "::configure", (Tcl_ObjCmdProc *) Conf,
 			(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
 	Tcl_GetVersion(&major, &minor, NULL, NULL);
