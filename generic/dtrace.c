@@ -123,7 +123,7 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc,
 		else
 		{
 			dtrace_optval_t opt;
-			if(dtrace_getopt(handles[index], option, &opt) != 0)
+			if(dtrace_getopt(handles[index], option+1, &opt) != 0)
 			{
 				Tcl_AppendResult(interp, COMMAND, 
 						" bad option ", option, NULL);
