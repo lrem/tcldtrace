@@ -1,8 +1,54 @@
+#include <strings.h>
 #include "dtrace.h"
+
+char *index_to_handle (const int index)
+{
+	static char buf[16];
+	snprintf(buf, 16, "dtrace_handle%d", index);
+	return buf;
+}
+
+int handle_to_index (const char *handle)
+{
+	return atoi(handle + 13);
+}
 
 int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-	printf("hi!\n");
+	if(handles_count == MAX_HANDLES)
+	{
+		Tcl_AppendResult(interp, "::dtrace::open max handles reached",
+				NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "MAX_HANDLES", NULL);
+		return TCL_ERROR;
+	}
+
+	int flags = 0;
+	int error;
+
+	if(objc > 1)
+	{
+		int i = objc - 1;
+		if(strcmp(Tcl_GetString(objv[i]), "0") == 0)
+		{
+			flags |= DTRACE_O_NODEV;
+		}
+	}
+
+	handles[handles_count] = dtrace_open(DTRACE_VERSION, flags, &error);
+
+	if(handles[handles_count] == NULL)
+	{
+		Tcl_AppendResult(interp, "::dtrace::open libdtrace error: ",
+				dtrace_errmsg(NULL, error), NULL);
+		char errnum[16];
+		snprintf(errnum, 16, "%d", error);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+		return TCL_ERROR;
+	}
+
+	Tcl_SetResult(interp, index_to_handle(handles_count), TCL_VOLATILE);
+	handles_count++;
 
 	return TCL_OK;
 }
