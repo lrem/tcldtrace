@@ -87,10 +87,32 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 	return TCL_OK;
 }
 
+char *get_option(int index, const char *option)
+{
+	static char value [12];
+	if(internal_option(option))
+	{
+		/* Only one defined for now. */
+		snprintf(value, 12, "%d", options[index].foldpdesc);
+	}
+	else
+	{
+		dtrace_optval_t opt;
+		if(dtrace_getopt(handles[index], option+1, &opt) != 0)
+		{
+			return NULL;
+		}
+		if(opt == DTRACEOPT_UNSET)
+			opt = 0;
+		snprintf(value, 12, "%d", opt);
+	}
+	return value;
+}
+
 int Conf (ClientData cd, Tcl_Interp *interp, int objc, 
 		Tcl_Obj *const objv[])
 {
-	if(objc == 1)
+	if(objc % 2 == 1 && objc != 3)
 	{
 		Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
 		Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
@@ -109,32 +131,43 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc,
 		 * These are a little arbitrary, listed on:
 		 * http://dev.lrem.net/tcldtrace/wiki/CommandsList
 		 */
+		Tcl_Obj *list = Tcl_NewListObj(0, NULL);
+		for(int i = 0; basic_options[i] != NULL; i++)
+		{
+			Tcl_ListObjAppendElement(interp, list,
+					Tcl_NewStringObj(basic_options[i],-1));
+			char *value = get_option(index, basic_options[i]);
+			/* This should not fail, unless something in libdtrace
+			 * changes, or we have a bug...
+			 */
+			if(value == NULL)
+			{
+				Tcl_AppendResult(interp, COMMAND, " a basic "
+						"option failed, this sould "
+						"never happen!", NULL);
+				Tcl_SetErrorCode(interp, ERROR_CLASS, "BUG", 
+						NULL);
+				return TCL_ERROR;
+			}
+			Tcl_ListObjAppendElement(interp, list,
+					Tcl_NewStringObj(value, -1));
+		}
+	
+		Tcl_SetObjResult(interp, list);
 		return TCL_OK;
 	}
 	if(objc == 3)
 	{
 		char *option = Tcl_GetString(objv[2]);
-		char value[12];
-		if(internal_option(option))
+		char *value = get_option(index, option);
+		if(value == NULL)
 		{
-			/* Only one defined for now. */
-			snprintf(value, 12, "%d", options[index].foldpdesc);
+			Tcl_AppendResult(interp, COMMAND, " bad option ", 
+					option, NULL);
+			Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
+			return TCL_ERROR;
 		}
-		else
-		{
-			dtrace_optval_t opt;
-			if(dtrace_getopt(handles[index], option+1, &opt) != 0)
-			{
-				Tcl_AppendResult(interp, COMMAND, 
-						" bad option ", option, NULL);
-				Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION",
-						NULL);
-				return TCL_ERROR;
-			}
-			if(opt == DTRACEOPT_UNSET)
-				opt = 0;
-			snprintf(value, 12, "%d", opt);
-		}
+
 		Tcl_SetResult(interp, value, TCL_VOLATILE);
 		return TCL_OK;
 	}

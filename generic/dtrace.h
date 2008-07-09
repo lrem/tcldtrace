@@ -23,6 +23,14 @@ typedef struct options_s
 }
 options_t;
 options_t options [MAX_HANDLES];
+char *basic_options[] = 
+{
+	"-flowindent",
+	"-quiet",
+	"-bufsize",
+	"-foldpdesc",
+	NULL
+};
 
 extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
 		Tcl_NamespaceDeleteProc*);
