@@ -53,6 +53,23 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 	return TCL_OK;
 }
 
+int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+	int index = handle_to_index(Tcl_GetString(objv[1]));
+
+	if(index < 0 || handles[index] == NULL)
+	{
+		Tcl_AppendResult(interp, "::dtrace::close bad handle", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+		return TCL_ERROR;
+	}
+
+	dtrace_close(handles[index]);
+	handles[index] = NULL;
+
+	return TCL_OK;
+}
+
 int Dtrace_Init (Tcl_Interp *interp)
 {
 	Tcl_Namespace *namespace;
@@ -78,6 +95,9 @@ int Dtrace_Init (Tcl_Interp *interp)
 		return TCL_ERROR;
 
 	Tcl_CreateObjCommand(interp, NS "::open", (Tcl_ObjCmdProc *) Open,
+			(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+	Tcl_CreateObjCommand(interp, NS "::close", (Tcl_ObjCmdProc *) Close,
 			(ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
 	Tcl_GetVersion(&major, &minor, NULL, NULL);
