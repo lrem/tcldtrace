@@ -1,6 +1,3 @@
-#include <dtrace.h>
-#include <libproc.h>
-#include <tcl.h>
 #include "dtrace.h"
 
 int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
@@ -30,7 +27,6 @@ int Dtrace_Init (Tcl_Interp *interp)
 		return TCL_ERROR;
 	}
 
-	/* This creates a warning. Solaris does not have <tclInt.h> */
 	namespace = Tcl_CreateNamespace(interp, NS, NULL, NULL);
 	if(namespace == NULL)
 		return TCL_ERROR;
