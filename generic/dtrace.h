@@ -23,11 +23,16 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 #ifndef __DTRACE_H
 #define __DTRACE_H
 
-#define PACKAGE_VERSION	"1.0"
+#define DTRACE_VERSION	"1.0"
+#define DTRACE_MAJOR	1
+#define DTRACE_MINOR	0
+
 #define NS		"dtrace"
 #define ERROR_CLASS 	"DTRACE"
 
@@ -43,22 +48,22 @@ int handles_count = 0;
 dtrace_hdl_t *handles [MAX_HANDLES];
 
 #define internal_option(a) (strcmp(a, "-foldpdesc") == 0)
-typedef struct options_s
-{
-	int foldpdesc;
+typedef struct options_s {
+    int foldpdesc;
 }
 options_t;
 options_t options [MAX_HANDLES];
-char *basic_options[] = 
-{
-	"-flowindent",
-	"-quiet",
-	"-bufsize",
-	"-foldpdesc",
-	NULL
+char *basic_options[] = {
+    "-flowindent",
+    "-quiet",
+    "-bufsize",
+    "-foldpdesc",
+    NULL
 };
 
 extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
-		Tcl_NamespaceDeleteProc*);
+        Tcl_NamespaceDeleteProc*);
 
 #endif /* __DTRACE_H */
+
+/* vim: set cindent ts=8 sw=4 et: */
