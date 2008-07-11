@@ -65,7 +65,7 @@ const char *basic_options[] = {
  * Gives us an unique identifier for each handle.
  */
 TCL_DECLARE_MUTEX(idMutex)
-char *next_free_id = (char*) 1;
+int next_free_id = 1;
 
 extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
         Tcl_NamespaceDeleteProc*);

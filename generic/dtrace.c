@@ -65,8 +65,13 @@ int set_option (handle_data *hd, const char *option, const char *value)
     return 1;
 }
 
-handle_data *get_hd (Tcl_Interp *interp, char *id)
+handle_data *get_hd (Tcl_Interp *interp, Tcl_Obj *__id)
 {
+    int _id;
+    if(Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
+        return NULL;
+    }
+    char *id = (char*) _id;
     Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
     if(htable == NULL) {
         return NULL;
@@ -78,7 +83,21 @@ handle_data *get_hd (Tcl_Interp *interp, char *id)
     return Tcl_GetHashValue(hentry);
 }
 
-handle_data *new_hd (Tcl_Interp *interp, char **id)
+/* By the time we get to this function, we already know that it finds
+ * the entry well.
+ */
+void del_hd (Tcl_Interp *interp, Tcl_Obj *__id)
+{
+    int _id;
+    Tcl_GetIntFromObj(interp, __id, &_id);
+    char *id = (char*) _id;
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    Tcl_HashEntry *hentry = Tcl_FindHashEntry(htable, id);
+    ckfree(Tcl_GetHashValue(hentry));
+    Tcl_DeleteHashEntry(hentry);
+}
+
+handle_data *new_hd (Tcl_Interp *interp, int *id)
 {
     Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
     if(htable == NULL) {
@@ -91,7 +110,7 @@ handle_data *new_hd (Tcl_Interp *interp, char **id)
     Tcl_MutexUnlock(idMutex);
     
     handle_data *hd = (handle_data*) ckalloc(sizeof(handle_data));
-    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, *id, NULL);
+    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, (char*) *id, NULL);
     Tcl_SetHashValue(hentry, hd);
     return hd;
 }
@@ -115,8 +134,11 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         }
     }
 
-    char *id;
+    int id;
     handle_data *hd = new_hd(interp, &id);
+    if(hd == NULL) {
+        return TCL_ERROR;
+    }
     hd->handle = dtrace_open(DTRACE_VERSION, flags, &error);
 
     if(hd->handle == NULL) {
@@ -138,29 +160,30 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         }
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj((int) id));
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
 
     return TCL_OK;
 }
 
 int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
-    int index = handle_to_index(Tcl_GetString(objv[1]));
-
     if(objc != 2) {
         Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
         Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
         return TCL_ERROR;
     }
 
-    if(index < 0 || handles[index] == NULL) {
+    handle_data *hd = get_hd(interp, objv[1]);
+
+    if(hd == NULL || hd->handle == NULL) {
         Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
         Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
         return TCL_ERROR;
     }
 
-    dtrace_close(handles[index]);
-    handles[index] = NULL;
+    dtrace_close(hd->handle);
+    hd->handle = NULL;
+    del_hd(interp, objv[1]);
 
     return TCL_OK;
 }
@@ -172,8 +195,8 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
         return TCL_ERROR;
     }
-    int index = handle_to_index(Tcl_GetString(objv[1]));
-    if(index < 0 || handles[index] == NULL) {
+    handle_data *hd = get_hd(interp, objv[1]);
+    if(hd == NULL || hd->handle == NULL) {
         Tcl_AppendResult(interp, COMMAND, " bad handle", NULL);
         Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
         return TCL_ERROR;
@@ -187,7 +210,7 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         for(int i = 0; basic_options[i] != NULL; i++) {
             Tcl_ListObjAppendElement(interp, list,
                     Tcl_NewStringObj(basic_options[i],-1));
-            char *value = get_option(index, basic_options[i]);
+            char *value = get_option(hd, basic_options[i]);
             /* This should not fail, unless something in libdtrace
              * changes, or we have a bug...
              */
@@ -205,7 +228,7 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     }
     if(objc == 3) {
         char *option = Tcl_GetString(objv[2]);
-        char *value = get_option(index, option);
+        char *value = get_option(hd, option);
         if(value == NULL) {
             Tcl_AppendResult(interp, COMMAND, " bad option ", option, NULL);
             Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
@@ -218,7 +241,7 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 
     /* We got a list of options to set, empty string to return. */
     for(int i = 2; i < objc-1; i+=2) {
-        if(set_option(index, Tcl_GetString(objv[i]), 
+        if(set_option(hd, Tcl_GetString(objv[i]), 
                     Tcl_GetString(objv[i+1])) == 0) {
             Tcl_AppendResult(interp, COMMAND, " bad option change ",
                     Tcl_GetString(objv[i]), NULL);
