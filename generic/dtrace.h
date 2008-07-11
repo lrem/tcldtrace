@@ -33,7 +33,8 @@
 #define TCLDTRACE_MAJOR	        1
 #define TCLDTRACE_MINOR	        0
 
-#define NS		        "dtrace"
+#define EXTENSION_NAME          "dtrace"
+#define NS		        EXTENSION_NAME
 #define ERROR_CLASS 	        "DTRACE"
 
 #define COMMAND		        Tcl_GetString(objv[0])

@@ -72,7 +72,7 @@ handle_data *get_hd (Tcl_Interp *interp, Tcl_Obj *__id)
         return NULL;
     }
     char *id = (char*) _id;
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
     if(htable == NULL) {
         return NULL;
     }
@@ -91,7 +91,7 @@ void del_hd (Tcl_Interp *interp, Tcl_Obj *__id)
     int _id;
     Tcl_GetIntFromObj(interp, __id, &_id);
     char *id = (char*) _id;
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
     Tcl_HashEntry *hentry = Tcl_FindHashEntry(htable, id);
     ckfree(Tcl_GetHashValue(hentry));
     Tcl_DeleteHashEntry(hentry);
@@ -99,8 +99,9 @@ void del_hd (Tcl_Interp *interp, Tcl_Obj *__id)
 
 handle_data *new_hd (Tcl_Interp *interp, int *id)
 {
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
     if(htable == NULL) {
+        Tcl_SetErrorCode(interp, ERROR_CLASS, "BUG", NULL);
         return NULL;
     }
     
@@ -110,7 +111,8 @@ handle_data *new_hd (Tcl_Interp *interp, int *id)
     Tcl_MutexUnlock(idMutex);
     
     handle_data *hd = (handle_data*) ckalloc(sizeof(handle_data));
-    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, (char*) *id, NULL);
+    int discard;
+    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, (char*) *id, &discard);
     Tcl_SetHashValue(hentry, hd);
     return hd;
 }
@@ -137,6 +139,8 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     int id;
     handle_data *hd = new_hd(interp, &id);
     if(hd == NULL) {
+        Tcl_AppendResult(interp, COMMAND, " problems creating a handle ",
+                "- bug or OOM", NULL);
         return TCL_ERROR;
     }
     hd->handle = dtrace_open(DTRACE_VERSION, flags, &error);
@@ -252,6 +256,10 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     return TCL_OK;
 }
 
+void Dtrace_DeInit (ClientData cd, Tcl_Interp *interp)
+{
+}
+
 int Dtrace_Init (Tcl_Interp *interp) 
 {
 
@@ -267,6 +275,10 @@ int Dtrace_Init (Tcl_Interp *interp)
             || Tcl_PkgRequire(interp, "Tcl", "8.4", 0) == NULL) {
         return TCL_ERROR;
     }
+
+    Tcl_HashTable *htable = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(htable, TCL_ONE_WORD_KEYS);
+    Tcl_SetAssocData(interp, EXTENSION_NAME, Dtrace_DeInit, htable);
 
     if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
         return TCL_ERROR;
