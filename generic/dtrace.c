@@ -91,16 +91,16 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     int error;
 
     if(objc > 1 && objc % 2 == 0) {
-        char *last = Tcl_GetString(objv[objc - 1]);
+        int instrument;
 
-        if(last[0] == '1') {
-            flags |= DTRACE_O_NODEV;
-        }
-
-        if(strlen(last) != 1) {
-            Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+        if(Tcl_GetBooleanFromObj(interp, objv[objc-1], &instrument) != TCL_OK) {
+            Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
             Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
             return TCL_ERROR;
+        }
+
+        if(!instrument) {
+            flags |= DTRACE_O_NODEV;
         }
     }
 
@@ -233,7 +233,7 @@ int Dtrace_Init (Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (Tcl_PkgProvide(interp, "dtrace", PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
         return TCL_ERROR;
     }
 

@@ -29,16 +29,16 @@
 #ifndef __DTRACE_H
 #define __DTRACE_H
 
-#define DTRACE_VERSION	"1.0"
-#define DTRACE_MAJOR	1
-#define DTRACE_MINOR	0
+#define TCLDTRACE_VERSION	"1.0"
+#define TCLDTRACE_MAJOR	        1
+#define TCLDTRACE_MINOR	        0
 
-#define NS		"dtrace"
-#define ERROR_CLASS 	"DTRACE"
+#define NS		        "dtrace"
+#define ERROR_CLASS 	        "DTRACE"
 
-#define MAX_HANDLES	32
+#define MAX_HANDLES	        32
 
-#define COMMAND		Tcl_GetString(objv[0])
+#define COMMAND		        Tcl_GetString(objv[0])
 
 #include <dtrace.h>
 #include <libproc.h>
