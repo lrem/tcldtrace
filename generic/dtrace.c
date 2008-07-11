@@ -29,30 +29,16 @@
 #include <strings.h>
 #include "dtrace.h"
 
-char *index_to_handle (const int index) 
-{
-    static char buf[16];
-    snprintf(buf, 16, "dtrace_handle%d", index);
-    return buf;
-}
-
-int handle_to_index (const char *handle) 
-{
-    if(strncmp(handle, "dtrace_handle", 13) != 0)
-        return -1;
-    return atoi(handle + 13);
-}
-
-char *get_option(int index, const char *option) 
+char *get_option (handle_data *hd, const char *option) 
 {
     static char value [12];
     if(internal_option(option)) {
         /* Only one defined for now. */
-        snprintf(value, 12, "%d", options[index].foldpdesc);
+        snprintf(value, 12, "%d", hd->options.foldpdesc);
     } 
     else {
         dtrace_optval_t opt;
-        if(dtrace_getopt(handles[index], option+1, &opt) != 0) {
+        if(dtrace_getopt(hd->handle, option+1, &opt) != 0) {
             return NULL;
         }
         if(opt == DTRACEOPT_UNSET)
@@ -62,31 +48,56 @@ char *get_option(int index, const char *option)
     return value;
 }
 
-int set_option(int index, const char *option, const char *value) 
+int set_option (handle_data *hd, const char *option, const char *value) 
 {
     if(internal_option(option)) {
         /* Only one defined for now. */
         if(value[0] == '0' && value[1] == 0)
-            options[index].foldpdesc = 0;
+            hd->options.foldpdesc = 0;
         else
-            options[index].foldpdesc = 1;
+            hd->options.foldpdesc = 1;
     } 
     else {
-        if(dtrace_setopt(handles[index], option+1, value) != 0) {
+        if(dtrace_setopt(hd->handle, option+1, value) != 0) {
             return 0;
         }
     }
     return 1;
 }
 
+handle_data *get_hd (Tcl_Interp *interp, char *id)
+{
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    if(htable == NULL) {
+        return NULL;
+    }
+    Tcl_HashEntry *hentry = Tcl_FindHashEntry(htable, id);
+    if(hentry == NULL) {
+        return NULL;
+    }
+    return Tcl_GetHashValue(hentry);
+}
+
+handle_data *new_hd (Tcl_Interp *interp, char **id)
+{
+    Tcl_HashTable *htable = Tcl_GetAssocData(interp, "dtrace", NULL);
+    if(htable == NULL) {
+        return NULL;
+    }
+    
+    Tcl_MutexLock(idMutex);
+    *id = next_free_id;
+    next_free_id++;
+    Tcl_MutexUnlock(idMutex);
+    
+    handle_data *hd = (handle_data*) ckalloc(sizeof(handle_data));
+    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, *id, NULL);
+    Tcl_SetHashValue(hentry, hd);
+    return hd;
+}
+
 int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
-    if(handles_count == MAX_HANDLES) {
-        Tcl_AppendResult(interp, COMMAND, " max handles reached", NULL);
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "MAX_HANDLES", NULL);
-        return TCL_ERROR;
-    }
-
     int flags = 0;
     int error;
 
@@ -104,9 +115,11 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         }
     }
 
-    handles[handles_count] = dtrace_open(DTRACE_VERSION, flags, &error);
+    char *id;
+    handle_data *hd = new_hd(interp, &id);
+    hd->handle = dtrace_open(DTRACE_VERSION, flags, &error);
 
-    if(handles[handles_count] == NULL) {
+    if(hd->handle == NULL) {
         Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
                 dtrace_errmsg(NULL, error), NULL);
         char errnum[16];
@@ -116,7 +129,7 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     }
 
     for(int i = 1; i < objc - 1; i+=2) {
-        if(set_option(handles_count, Tcl_GetString(objv[i]), 
+        if(set_option(hd, Tcl_GetString(objv[i]), 
                     Tcl_GetString(objv[i+1])) == 0) {
             Tcl_AppendResult(interp, COMMAND, " bad option initialization ",
                     Tcl_GetString(objv[i]), NULL);
@@ -125,8 +138,7 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
         }
     }
 
-    Tcl_SetResult(interp, index_to_handle(handles_count), TCL_VOLATILE);
-    handles_count++;
+    Tcl_SetObjResult(interp, Tcl_NewIntObj((int) id));
 
     return TCL_OK;
 }

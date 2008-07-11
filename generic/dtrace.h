@@ -36,30 +36,36 @@
 #define NS		        "dtrace"
 #define ERROR_CLASS 	        "DTRACE"
 
-#define MAX_HANDLES	        32
-
 #define COMMAND		        Tcl_GetString(objv[0])
 
 #include <dtrace.h>
 #include <libproc.h>
 #include <tcl.h>
 
-int handles_count = 0;
-dtrace_hdl_t *handles [MAX_HANDLES];
 
 #define internal_option(a) (strcmp(a, "-foldpdesc") == 0)
 typedef struct options_s {
     int foldpdesc;
-}
-options_t;
-options_t options [MAX_HANDLES];
-char *basic_options[] = {
+} options_t;
+
+typedef struct handle_data {
+    dtrace_hdl_t *handle; 
+    options_t options;
+} handle_data;
+
+const char *basic_options[] = {
     "-flowindent",
     "-quiet",
     "-bufsize",
     "-foldpdesc",
     NULL
 };
+
+/* Explicitly common across all threads. Should be only incremented.
+ * Gives us an unique identifier for each handle.
+ */
+TCL_DECLARE_MUTEX(idMutex)
+char *next_free_id = (char*) 1;
 
 extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
         Tcl_NamespaceDeleteProc*);
