@@ -172,7 +172,7 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
     if(objc != 2) {
-        Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+        Tcl_WrongNumArgs(interp, 1, objv, "handle");
         Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
         return TCL_ERROR;
     }
@@ -195,7 +195,7 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
     if(objc % 2 == 1 && objc != 3) {
-        Tcl_AppendResult(interp, COMMAND, " bad usage", NULL);
+        Tcl_WrongNumArgs(interp, 1, objv, "handle ?option value ...?");
         Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
         return TCL_ERROR;
     }
