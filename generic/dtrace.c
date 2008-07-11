@@ -1,4 +1,4 @@
-/*
+/* Copyright header {{{
  * Copyright (c) 2008, Remigiusz 'lRem' Modrzejewski
  * All rights reserved.
  *
@@ -25,9 +25,20 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $Id$
- */
+ * }}} */
 #include <strings.h>
 #include "dtrace.h"
+
+/* get_option {{{
+ *
+ *      Gets the value of a given option.
+ *
+ * Results:
+ *      The option value as a null terminated string.
+ *
+ * Side effects:
+ *      None.
+ */
 
 char *get_option (handle_data *hd, const char *option) 
 {
@@ -47,6 +58,18 @@ char *get_option (handle_data *hd, const char *option)
     }
     return value;
 }
+/*}}}*/
+/* set_option {{{
+ *
+ *      Sets an option to the given value.
+ *
+ * Results:
+ *      1 on success, 0 on failure.
+ *
+ * Side effects:
+ *      The option is changed in the extension state variables or passed
+ *      to libdtrace.
+ */
 
 int set_option (handle_data *hd, const char *option, const char *value) 
 {
@@ -64,6 +87,19 @@ int set_option (handle_data *hd, const char *option, const char *value)
     }
     return 1;
 }
+/*}}}*/
+/* get_hd {{{
+ *
+ *      Given a Tcl-level handle, gets the libdtrace handle and options,
+ *      from the interpreter associated hash table.
+ *
+ * Results:
+ *      A pointer to handle_data structure on succes.
+ *      NULL on failure.
+ *
+ * Side effects:
+ *      None.
+ */
 
 handle_data *get_hd (Tcl_Interp *interp, Tcl_Obj *__id)
 {
@@ -82,6 +118,19 @@ handle_data *get_hd (Tcl_Interp *interp, Tcl_Obj *__id)
     }
     return Tcl_GetHashValue(hentry);
 }
+/*}}}*/
+/* del_hd {{{
+ *
+ *      Delete the hash entry and free the memory taken by a handle_data
+ *      structure.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Hash entry is deleted.
+ *      Memory of handle_data (without the dtrace_hdl_t handle) is freed.
+ */
 
 /* By the time we get to this function, we already know that it finds
  * the entry well.
@@ -96,6 +145,20 @@ void del_hd (Tcl_Interp *interp, Tcl_Obj *__id)
     ckfree(Tcl_GetHashValue(hentry));
     Tcl_DeleteHashEntry(hentry);
 }
+/*}}}*/
+/* new_hd {{{
+ *
+ *      Registers a new handle_data structure.
+ *
+ * Results:
+ *      A pointer to handle_data on success.
+ *      NULL on failure.
+ *
+ * Side effects:
+ *      Memory is ckalloc'ed.
+ *      Hash entry is inserted.
+ *      The static next_free_id is incremented in a thread-safe way.
+ */
 
 handle_data *new_hd (Tcl_Interp *interp, int *id)
 {
@@ -116,6 +179,19 @@ handle_data *new_hd (Tcl_Interp *interp, int *id)
     Tcl_SetHashValue(hentry, hd);
     return hd;
 }
+/*}}}*/
+/* Open {{{
+ *
+ *      Implements the ::dtrace::open command.
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      Handle data registered into interpreter associated hash table.
+ *      A dtrace handle is opened.
+ *      Initial options are set.
+ */
 
 int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
@@ -168,6 +244,18 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 
     return TCL_OK;
 }
+/*}}}*/
+/* Close {{{
+ *
+ *     Implements the ::dtrace::close command. 
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      Dtrace handle gets closed.
+ *      Handle data unregistered from interpreter associated hash table.
+ */
 
 int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
@@ -191,6 +279,17 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 
     return TCL_OK;
 }
+/*}}}*/
+/* Conf {{{
+ *
+ *      Implements the ::dtrace::configure command.
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      Given options are set.
+ */
 
 int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
 {
@@ -255,10 +354,39 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     }
     return TCL_OK;
 }
+/*}}}*/
+/* name {{{
+ *
+ *      Abstract
+ *
+ * Results:
+ *      Return value
+ *
+ * Side effects:
+ *      What happens
+ */
 
 void Dtrace_DeInit (ClientData cd, Tcl_Interp *interp)
 {
 }
+/*}}}*/
+/* Dtrace_Init {{{
+ *
+ *      Initializes the package.
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *      The dtrace package is created.
+ *      Package data is associated with the interpreter.
+ *      A call to Dtrace_DeInit is scheduled on unassociation of the data.
+ *      A namespace and an ensamble are created.
+ *      New commands added to the interpreter:
+ *              ::dtrace::open
+ *              ::dtrace::close
+ *              ::dtrace::configure
+ */
 
 int Dtrace_Init (Tcl_Interp *interp) 
 {
@@ -307,5 +435,5 @@ int Dtrace_Init (Tcl_Interp *interp)
 
     return TCL_OK;
 }
-
-/* vim: set cindent ts=8 sw=4 et: */
+/*}}}*/
+/* vim: set cindent ts=8 sw=4 et tw=80 foldmethod=marker: */

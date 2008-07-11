@@ -1,4 +1,4 @@
-/*
+/* Copyright header {{{
  * Copyright (c) 2008, Remigiusz 'lRem' Modrzejewski
  * All rights reserved.
  *
@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $Id$
- */
+ * }}} */
 #ifndef __DTRACE_H
 #define __DTRACE_H
 
@@ -73,4 +73,4 @@ extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData,
 
 #endif /* __DTRACE_H */
 
-/* vim: set cindent ts=8 sw=4 et: */
+/* vim: set cindent ts=8 sw=4 et tw=80 foldmethod=marker: */
