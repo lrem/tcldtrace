@@ -355,19 +355,26 @@ int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     return TCL_OK;
 }
 /*}}}*/
-/* name {{{
+/* Dtrace_DeInit {{{
  *
- *      Abstract
+ *      Exit time cleanup.
  *
  * Results:
- *      Return value
+ *      None.
  *
  * Side effects:
- *      What happens
+ *      All remaining dtrace_hdl_t's are closed.
  */
 
-void Dtrace_DeInit (ClientData cd, Tcl_Interp *interp)
+void Dtrace_DeInit (ClientData htable)
 {
+    Tcl_HashSearch searchPtr;
+    Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
+    while(hentry != NULL)
+    {
+        dtrace_close(((handle_data*) Tcl_GetHashValue(hentry))->handle);
+        hentry = Tcl_NextHashEntry(&searchPtr);
+    }
 }
 /*}}}*/
 /* Dtrace_Init {{{
@@ -406,7 +413,8 @@ int Dtrace_Init (Tcl_Interp *interp)
 
     Tcl_HashTable *htable = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
     Tcl_InitHashTable(htable, TCL_ONE_WORD_KEYS);
-    Tcl_SetAssocData(interp, EXTENSION_NAME, Dtrace_DeInit, htable);
+    Tcl_SetAssocData(interp, EXTENSION_NAME, NULL, htable);
+    Tcl_CreateExitHandler(Dtrace_DeInit, htable);
 
     if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
         return TCL_ERROR;
