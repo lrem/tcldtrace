@@ -420,9 +420,7 @@ int Dtrace_Init (Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    namespace = Tcl_CreateNamespace(interp, NS, NULL, NULL);
-    if(namespace == NULL)
-        return TCL_ERROR;
+    Tcl_Eval(interp, "namespace create " NS);
 
     Tcl_CreateObjCommand(interp, NS "::open", (Tcl_ObjCmdProc *) Open,
             (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);

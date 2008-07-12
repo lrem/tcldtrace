@@ -68,9 +68,6 @@ const char *basic_options[] = {
 TCL_DECLARE_MUTEX(idMutex)
 int next_free_id = 1;
 
-extern Tcl_Namespace* Tcl_CreateNamespace(Tcl_Interp*, const char*, ClientData, 
-        Tcl_NamespaceDeleteProc*);
-
 #endif /* __DTRACE_H */
 
 /* vim: set cindent ts=8 sw=4 et tw=80 foldmethod=marker: */
