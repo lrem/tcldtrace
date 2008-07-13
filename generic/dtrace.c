@@ -26,218 +26,261 @@
  *
  * $Id$
  * }}} */
+
 #include <strings.h>
 #include "dtrace.h"
 
 /* get_option {{{
  *
- *      Gets the value of a given option.
+ *	Gets the value of a given option.
  *
  * Results:
- *      The option value as a null terminated string.
+ *	The option value as a null terminated string.
  *
  * Side effects:
- *      None.
+ *	None.
  */
 
-char *get_option (handle_data *hd, const char *option) 
+static char *get_option (
+	handle_data *hd, 
+	const char *option) 
 {
-    static char value [12];
-    if(internal_option(option)) {
-        /* Only one defined for now. */
-        snprintf(value, 12, "%d", hd->options.foldpdesc);
+    static char value[12];
+
+    if (internal_option(option)) {
+	/* Only one defined for now. */
+	snprintf(value, 12, "%d", hd->options.foldpdesc);
     } 
     else {
-        dtrace_optval_t opt;
-        if(dtrace_getopt(hd->handle, option+1, &opt) != 0) {
-            return NULL;
-        }
-        if(opt == DTRACEOPT_UNSET)
-            opt = 0;
-        snprintf(value, 12, "%d", opt);
+	dtrace_optval_t opt;
+
+	if (dtrace_getopt(hd->handle, option+1, &opt) != 0) {
+	    return NULL;
+	}
+	if (opt == DTRACEOPT_UNSET) {
+	    opt = 0;
+	}
+	snprintf(value, 12, "%d", opt);
     }
     return value;
 }
 /*}}}*/
+
 /* set_option {{{
  *
- *      Sets an option to the given value.
+ *	Sets an option to the given value.
  *
  * Results:
- *      1 on success, 0 on failure.
+ *	1 on success, 0 on failure.
  *
  * Side effects:
- *      The option is changed in the extension state variables or passed
- *      to libdtrace.
+ *	The option is changed in the extension state variables or passed
+ *	to libdtrace.
  */
 
-int set_option (handle_data *hd, const char *option, const char *value) 
+static int set_option (
+	handle_data *hd, 
+	const char *option, 
+	const char *value)
 {
-    if(internal_option(option)) {
-        /* Only one defined for now. */
-        if(value[0] == '0' && value[1] == 0)
-            hd->options.foldpdesc = 0;
-        else
-            hd->options.foldpdesc = 1;
+    if (internal_option(option)) {
+	/* Only one defined for now. */
+	if (value[0] == '0' && value[1] == 0) {
+	    hd->options.foldpdesc = 0;
+	}
+	else {
+	    hd->options.foldpdesc = 1;
+	}
     } 
-    else {
-        if(dtrace_setopt(hd->handle, option+1, value) != 0) {
-            return 0;
-        }
+    else if (dtrace_setopt(hd->handle, option+1, value) != 0) {
+	return 0;
     }
     return 1;
 }
 /*}}}*/
+
 /* get_hd {{{
  *
- *      Given a Tcl-level handle, gets the libdtrace handle and options,
- *      from the interpreter associated hash table.
+ *	Given a Tcl-level handle, gets the libdtrace handle and options,
+ *	from the interpreter associated hash table.
  *
  * Results:
- *      A pointer to handle_data structure on succes.
- *      NULL on failure.
+ *	A pointer to handle_data structure on succes.
+ *	NULL on failure.
  *
  * Side effects:
- *      None.
+ *	None.
  */
 
-handle_data *get_hd (Tcl_Interp *interp, Tcl_Obj *__id)
+static handle_data *get_hd (
+	Tcl_Interp *interp, 
+	Tcl_Obj *__id)
 {
     int _id;
-    if(Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
-        return NULL;
+    char *id;
+    Tcl_HashTable *htable;
+    Tcl_HashEntry *hentry;
+
+    if (Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
+	return NULL;
     }
-    char *id = (char*) _id;
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
-    if(htable == NULL) {
-        return NULL;
+    id = (char*)(intptr_t) _id;
+    htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    if (htable == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
-    Tcl_HashEntry *hentry = Tcl_FindHashEntry(htable, id);
-    if(hentry == NULL) {
-        return NULL;
+    hentry = Tcl_FindHashEntry(htable, id);
+    if (hentry == NULL) {
+	return NULL;
     }
     return Tcl_GetHashValue(hentry);
 }
 /*}}}*/
+
 /* del_hd {{{
  *
- *      Delete the hash entry and free the memory taken by a handle_data
- *      structure.
+ *	Delete the hash entry and free the memory taken by a handle_data
+ *	structure.
  *
  * Results:
- *      None.
+ *	None.
  *
  * Side effects:
- *      Hash entry is deleted.
- *      Memory of handle_data (without the dtrace_hdl_t handle) is freed.
+ *	Hash entry is deleted.
+ *	Memory of handle_data (without the dtrace_hdl_t handle) is freed.
  */
 
-/* By the time we get to this function, we already know that it finds
- * the entry well.
- */
-void del_hd (Tcl_Interp *interp, Tcl_Obj *__id)
+static void del_hd (
+	Tcl_Interp *interp, 
+	Tcl_Obj *__id)
 {
     int _id;
+    char *id;
+    Tcl_HashTable *htable;
+    Tcl_HashEntry *hentry;
+
     Tcl_GetIntFromObj(interp, __id, &_id);
-    char *id = (char*) _id;
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
-    Tcl_HashEntry *hentry = Tcl_FindHashEntry(htable, id);
-    ckfree(Tcl_GetHashValue(hentry));
-    Tcl_DeleteHashEntry(hentry);
+    id = (char*)(intptr_t) _id;
+    htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    if (htable == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash table not found");
+    }
+    hentry = Tcl_FindHashEntry(htable, id);
+    if (hentry != NULL) {
+	ckfree(Tcl_GetHashValue(hentry));
+	Tcl_DeleteHashEntry(hentry);
+    }
 }
 /*}}}*/
+
 /* new_hd {{{
  *
- *      Registers a new handle_data structure.
+ *	Registers a new handle_data structure.
  *
  * Results:
- *      A pointer to handle_data on success.
- *      NULL on failure.
+ *	A pointer to handle_data on success.
+ *	NULL on failure.
  *
  * Side effects:
- *      Memory is ckalloc'ed.
- *      Hash entry is inserted.
- *      The static next_free_id is incremented in a thread-safe way.
+ *	Memory is ckalloc'ed.
+ *	Hash entry is inserted.
+ *	The static next_free_id is incremented in a thread-safe way.
  */
 
-handle_data *new_hd (Tcl_Interp *interp, int *id)
+static handle_data *new_hd (
+	Tcl_Interp *interp, 
+	int *id)
 {
     Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
-    if(htable == NULL) {
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "BUG", NULL);
-        return NULL;
+    Tcl_HashEntry *hentry;
+    handle_data *hd;
+    int isNew;
+
+    if (htable == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
-    
+
     Tcl_MutexLock(idMutex);
     *id = next_free_id;
     next_free_id++;
     Tcl_MutexUnlock(idMutex);
-    
-    handle_data *hd = (handle_data*) ckalloc(sizeof(handle_data));
-    int discard;
-    Tcl_HashEntry *hentry = Tcl_CreateHashEntry(htable, (char*) *id, &discard);
+
+    hd = (handle_data*) ckalloc(sizeof(handle_data));
+    hentry = Tcl_CreateHashEntry(htable, (char*) *id, &isNew);
+    if (!isNew) {
+	Tcl_Panic(EXTENSION_NAME " duplicate hash table entry");
+    }
     Tcl_SetHashValue(hentry, hd);
     return hd;
 }
 /*}}}*/
+
 /* Open {{{
  *
- *      Implements the ::dtrace::open command.
+ *	Implements the ::dtrace::open command.
  *
  * Results:
- *      Standard Tcl result.
+ *	Standard Tcl result.
  *
  * Side effects:
- *      Handle data registered into interpreter associated hash table.
- *      A dtrace handle is opened.
- *      Initial options are set.
+ *	Handle data registered into interpreter associated hash table.
+ *	A dtrace handle is opened.
+ *	Initial options are set.
  */
 
-int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
+static int Open (
+	ClientData cd, 
+	Tcl_Interp *interp, 
+	int objc, 
+	Tcl_Obj *const objv[]) 
 {
     int flags = 0;
-    int error;
+    int error; 
+    int id;
+    int i;
+    handle_data *hd;
 
-    if(objc > 1 && objc % 2 == 0) {
-        int instrument;
+    if (objc > 1 && objc % 2 == 0) {
+	int instrument;
 
-        if(Tcl_GetBooleanFromObj(interp, objv[objc-1], &instrument) != TCL_OK) {
-            Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
-            Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-            return TCL_ERROR;
-        }
+	if (Tcl_GetBooleanFromObj(interp, objv[objc-1], &instrument)
+		!= TCL_OK) {
+	    Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	    return TCL_ERROR;
+	}
 
-        if(!instrument) {
-            flags |= DTRACE_O_NODEV;
-        }
+	if (!instrument) {
+	    flags |= DTRACE_O_NODEV;
+	}
     }
 
-    int id;
-    handle_data *hd = new_hd(interp, &id);
-    if(hd == NULL) {
-        Tcl_AppendResult(interp, COMMAND, " problems creating a handle ",
-                "- bug or OOM", NULL);
-        return TCL_ERROR;
+    hd = new_hd(interp, &id);
+    if (hd == NULL) {
+	Tcl_AppendResult(interp, COMMAND, " problems creating a handle ",
+		"- bug or OOM", NULL);
+	return TCL_ERROR;
     }
     hd->handle = dtrace_open(DTRACE_VERSION, flags, &error);
 
-    if(hd->handle == NULL) {
-        Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-                dtrace_errmsg(NULL, error), NULL);
-        char errnum[16];
-        snprintf(errnum, 16, "%d", error);
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-        return TCL_ERROR;
+    if (hd->handle == NULL) {
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(NULL, error), NULL);
+	snprintf(errnum, 16, "%d", error);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+	return TCL_ERROR;
     }
 
-    for(int i = 1; i < objc - 1; i+=2) {
-        if(set_option(hd, Tcl_GetString(objv[i]), 
-                    Tcl_GetString(objv[i+1])) == 0) {
-            Tcl_AppendResult(interp, COMMAND, " bad option initialization ",
-                    Tcl_GetString(objv[i]), NULL);
-            Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
-            return TCL_ERROR;
-        }
+    for (i = 1; i < objc - 1; i+=2) {
+	if (set_option(hd, Tcl_GetString(objv[i]),
+		Tcl_GetString(objv[i+1])) == 0) {
+	    Tcl_AppendResult(interp, COMMAND, " bad option initialization ",
+		    Tcl_GetString(objv[i]), NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
+	    return TCL_ERROR;
+	}
     }
 
     Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
@@ -245,32 +288,39 @@ int Open (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     return TCL_OK;
 }
 /*}}}*/
+
 /* Close {{{
  *
- *     Implements the ::dtrace::close command. 
+ *     Implements the ::dtrace::close command.
  *
  * Results:
- *      Standard Tcl result.
+ *	Standard Tcl result.
  *
  * Side effects:
- *      Dtrace handle gets closed.
- *      Handle data unregistered from interpreter associated hash table.
+ *	Dtrace handle gets closed.
+ *	Handle data unregistered from interpreter associated hash table.
  */
 
-int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
+static int Close (
+	ClientData cd, 
+	Tcl_Interp *interp, 
+	int objc, 
+	Tcl_Obj *const objv[]) 
 {
-    if(objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "handle");
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-        return TCL_ERROR;
+    handle_data *hd;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "handle");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
     }
 
-    handle_data *hd = get_hd(interp, objv[1]);
+    hd = get_hd(interp, objv[1]);
 
-    if(hd == NULL || hd->handle == NULL) {
-        Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
-        return TCL_ERROR;
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
     }
 
     dtrace_close(hd->handle);
@@ -280,166 +330,206 @@ int Close (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
     return TCL_OK;
 }
 /*}}}*/
+
 /* Conf {{{
  *
- *      Implements the ::dtrace::configure command.
+ *	Implements the ::dtrace::configure command.
  *
  * Results:
- *      Standard Tcl result.
+ *	Standard Tcl result.
  *
  * Side effects:
- *      Given options are set.
+ *	Given options are set.
  */
 
-int Conf (ClientData cd, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) 
+int Conf (
+	ClientData cd, 
+	Tcl_Interp *interp, 
+	int objc, 
+	Tcl_Obj *const objv[]) 
 {
-    if(objc % 2 == 1 && objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "handle ?option value ...?");
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-        return TCL_ERROR;
-    }
-    handle_data *hd = get_hd(interp, objv[1]);
-    if(hd == NULL || hd->handle == NULL) {
-        Tcl_AppendResult(interp, COMMAND, " bad handle", NULL);
-        Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
-        return TCL_ERROR;
-    }
-    if(objc == 2) {
-        /* Return the set of so called "basic options".
-         * These are a little arbitrary, listed on:
-         * http://dev.lrem.net/tcldtrace/wiki/CommandsList
-         */
-        Tcl_Obj *list = Tcl_NewListObj(0, NULL);
-        for(int i = 0; basic_options[i] != NULL; i++) {
-            Tcl_ListObjAppendElement(interp, list,
-                    Tcl_NewStringObj(basic_options[i],-1));
-            char *value = get_option(hd, basic_options[i]);
-            /* This should not fail, unless something in libdtrace
-             * changes, or we have a bug...
-             */
-            if(value == NULL) {
-                Tcl_AppendResult(interp, COMMAND, " a basic "
-                        "option failed, this sould never happen!", NULL);
-                Tcl_SetErrorCode(interp, ERROR_CLASS, "BUG", NULL);
-                return TCL_ERROR;
-            }
-            Tcl_ListObjAppendElement(interp, list, Tcl_NewStringObj(value, -1));
-        }
+    handle_data *hd;
+    int i;
 
-        Tcl_SetObjResult(interp, list);
-        return TCL_OK;
+    if (objc % 2 == 1 && objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "handle ?option value ...?");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
     }
-    if(objc == 3) {
-        char *option = Tcl_GetString(objv[2]);
-        char *value = get_option(hd, option);
-        if(value == NULL) {
-            Tcl_AppendResult(interp, COMMAND, " bad option ", option, NULL);
-            Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
-            return TCL_ERROR;
-        }
+    hd = get_hd(interp, objv[1]);
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND, " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+    if (objc == 2) {
+	/* Return the set of so called "basic options".
+	 * These are a little arbitrary, listed on:
+	 * http://dev.lrem.net/tcldtrace/wiki/CommandsList
+	 */
+	Tcl_Obj *list = Tcl_NewListObj(0, NULL);
 
-        Tcl_SetResult(interp, value, TCL_VOLATILE);
-        return TCL_OK;
+	for (i = 0; basic_options[i] != NULL; i++) {
+	    char *value;
+
+	    Tcl_ListObjAppendElement(interp, list,
+		    Tcl_NewStringObj(basic_options[i], -1));
+	    value = get_option(hd, basic_options[i]);
+	    /* This should not fail, unless something in libdtrace
+	     * changes, or we have a bug...
+	     */
+	    if (value == NULL) {
+		Tcl_AppendResult(interp, COMMAND, " a basic "
+			"option failed, this sould never happen!", NULL);
+		Tcl_SetErrorCode(interp, ERROR_CLASS, "BUG", NULL);
+		return TCL_ERROR;
+	    }
+	    Tcl_ListObjAppendElement(interp, list,
+		    Tcl_NewStringObj(value, -1));
+	}
+
+	Tcl_SetObjResult(interp, list);
+	return TCL_OK;
+    }
+    if (objc == 3) {
+	char *option = Tcl_GetString(objv[2]);
+	char *value = get_option(hd, option);
+
+	if (value == NULL) {
+	    Tcl_AppendResult(interp, COMMAND, " bad option ", option, NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
+	    return TCL_ERROR;
+	}
+
+	Tcl_SetResult(interp, value, TCL_VOLATILE);
+	return TCL_OK;
     }
 
     /* We got a list of options to set, empty string to return. */
-    for(int i = 2; i < objc-1; i+=2) {
-        if(set_option(hd, Tcl_GetString(objv[i]), 
-                    Tcl_GetString(objv[i+1])) == 0) {
-            Tcl_AppendResult(interp, COMMAND, " bad option change ",
-                    Tcl_GetString(objv[i]), NULL);
-            Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
-            return TCL_ERROR;
-        }
+    for (i = 2; i < objc-1; i += 2) {
+	if (set_option(hd, Tcl_GetString(objv[i]),
+		Tcl_GetString(objv[i+1])) == 0) {
+	    Tcl_AppendResult(interp, COMMAND, " bad option change ",
+		    Tcl_GetString(objv[i]), NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
+	    return TCL_ERROR;
+	}
     }
     return TCL_OK;
 }
 /*}}}*/
+
 /* Dtrace_DeInit {{{
  *
- *      Exit time cleanup.
+ *	Exit time cleanup.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	All remaining dtrace_hdl_t's are closed.
+ */
+
+void Dtrace_DeInit (
+	ClientData htable)
+{
+    Tcl_HashSearch searchPtr;
+    Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
+    handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
+
+    while (hentry != NULL)
+    {
+	dtrace_close(hd->handle);
+	ckfree((void*) hd);
+	hentry = Tcl_NextHashEntry(&searchPtr);
+    }
+    Tcl_DeleteHashTable(htable);
+}
+/*}}}*/
+
+/* onDestroy {{{
+ *
+ *      Called when interpreter is destroyed instead of exiting.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      All remaining dtrace_hdl_t's are closed.
+ *      Dtrace_DeInit is called to clean up.
+ *      Interpreter associated hash table is erased.
  */
 
-void Dtrace_DeInit (ClientData htable)
+void onDestroy (
+	ClientData htable, 
+	Tcl_Interp *interp)
 {
-    Tcl_HashSearch searchPtr;
-    Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
-    while(hentry != NULL)
-    {
-        dtrace_close(((handle_data*) Tcl_GetHashValue(hentry))->handle);
-        hentry = Tcl_NextHashEntry(&searchPtr);
-    }
+    Dtrace_DeInit(htable);
 }
 /*}}}*/
+
 /* Dtrace_Init {{{
  *
- *      Initializes the package.
+ *	Initializes the package.
  *
  * Results:
- *      Standard Tcl result.
+ *	Standard Tcl result.
  *
  * Side effects:
- *      The dtrace package is created.
- *      Package data is associated with the interpreter.
- *      A call to Dtrace_DeInit is scheduled on unassociation of the data.
- *      A namespace and an ensamble are created.
- *      New commands added to the interpreter:
- *              ::dtrace::open
- *              ::dtrace::close
- *              ::dtrace::configure
+ *	The dtrace package is created.
+ *	Package data is associated with the interpreter.
+ *	A call to Dtrace_DeInit is scheduled on unassociation of the data.
+ *	A namespace and an ensamble are created.
+ *	New commands added to the interpreter:
+ *		::dtrace::open
+ *		::dtrace::close
+ *		::dtrace::configure
  */
 
-int Dtrace_Init (Tcl_Interp *interp) 
+int Dtrace_Init (
+	Tcl_Interp *interp) 
 {
 
     Tcl_Namespace *namespace;
     int major;
     int minor;
+    Tcl_HashTable *htable;
 
     /* As I understood it, Tcl_InitStubs is to make the extension linkable
-     * against any version of interpreter that supports it. (Not only 
+     * against any version of interpreter that supports it. (Not only
      * against the binary available at compile time).
      */
-    if (Tcl_InitStubs(interp, "8.4", 0) == NULL 
-            || Tcl_PkgRequire(interp, "Tcl", "8.4", 0) == NULL) {
-        return TCL_ERROR;
+    if (Tcl_InitStubs(interp, "8.4", 0) == NULL
+	    || Tcl_PkgRequire(interp, "Tcl", "8.4", 0) == NULL) {
+	return TCL_ERROR;
     }
 
-    Tcl_HashTable *htable = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
+    htable = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
     Tcl_InitHashTable(htable, TCL_ONE_WORD_KEYS);
-    Tcl_SetAssocData(interp, EXTENSION_NAME, NULL, htable);
+    Tcl_SetAssocData(interp, EXTENSION_NAME, onDestroy, htable);
     Tcl_CreateExitHandler(Dtrace_DeInit, htable);
 
     if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
-        return TCL_ERROR;
+	return TCL_ERROR;
     }
 
-    Tcl_Eval(interp, "namespace create " NS);
+    Tcl_Eval(interp, "namespace eval " NS " {}");
 
-    Tcl_CreateObjCommand(interp, NS "::open", (Tcl_ObjCmdProc *) Open,
-            (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
-    Tcl_CreateObjCommand(interp, NS "::close", (Tcl_ObjCmdProc *) Close,
-            (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
-    Tcl_CreateObjCommand(interp, NS "::configure", (Tcl_ObjCmdProc *) Conf,
-            (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+    Tcl_CreateObjCommand(interp, NS "::open", Open, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::close", Close, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::configure", Conf, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
-    if(8 <= major && 5 <= minor) {
-        /* Tcl_Export(interp, namespace, "*", 0);
-           Tcl_CreateEnsemble(interp, NS, namespace, 0); */
-        Tcl_Eval(interp, "namespace eval " NS " {\n"
-                "namespace export *\n"
-                "namespace ensemble create\n"
-                "}");
+    if (8 <= major && 5 <= minor) {
+	/* Tcl_Export(interp, namespace, "*", 0);
+	   Tcl_CreateEnsemble(interp, NS, namespace, 0); */
+	Tcl_Eval(interp, "namespace eval " NS " {\n"
+		"namespace export *\n"
+		"namespace ensemble create\n"
+		"}");
     }
 
     return TCL_OK;
 }
 /*}}}*/
-/* vim: set cindent ts=8 sw=4 et tw=80 foldmethod=marker: */
+
+/* vim: set cindent ts=8 sw=4 tw=78 foldmethod=marker: */
