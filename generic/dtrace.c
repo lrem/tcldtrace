@@ -166,10 +166,11 @@ static void del_hd (
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
     hentry = Tcl_FindHashEntry(htable, id);
-    if (hentry != NULL) {
-	ckfree(Tcl_GetHashValue(hentry));
-	Tcl_DeleteHashEntry(hentry);
+    if (hentry == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash entry to be deleted not found");
     }
+    ckfree(Tcl_GetHashValue(hentry));
+    Tcl_DeleteHashEntry(hentry);
 }
 /*}}}*/
 
@@ -435,10 +436,10 @@ void Dtrace_DeInit (
 {
     Tcl_HashSearch searchPtr;
     Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
-    handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
 
     while (hentry != NULL)
     {
+	handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
 	dtrace_close(hd->handle);
 	ckfree((void*) hd);
 	hentry = Tcl_NextHashEntry(&searchPtr);
