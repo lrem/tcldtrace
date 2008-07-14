@@ -278,7 +278,12 @@ static int Open (
 
     for (i = 1; i < objc - 1; i+=2) {
 	if (set_option(hd, Tcl_GetString(objv[i]),
-		Tcl_GetString(objv[i+1])) == 0) {
+		    Tcl_GetString(objv[i+1])) == 0) {
+	    /* We have the handle opened by now, but since we throw an error
+	     * we also should not provide an usable handle.
+	     */
+	    dtrace_close(hd->handle);
+	    del_hd(interp, Tcl_NewIntObj(id));
 	    Tcl_AppendResult(interp, COMMAND, " bad option initialization ",
 		    Tcl_GetString(objv[i]), NULL);
 	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
