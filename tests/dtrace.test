@@ -65,6 +65,56 @@ test "ensemble-1.3" "lookin for ensemble" {[expr {[info tclversion] >= 8.5}]} {
 
 # }}}
 
+# Simple scripts, no output {{{
+
+test "simplescripts-1.1" "opening and closing" {
+	list [catch {
+			set h [::dtrace::open 0]
+			::dtrace::close $h
+		} result] $result
+} {0 {}}
+
+test "simplescripts-1.2" "opening and double closing" {
+	list [catch {
+			set h [::dtrace::open 0]
+			::dtrace::close $h
+			::dtrace::close $h
+		} result] $result
+} {1 {::dtrace::close bad handle}}
+
+test "simplescripts-2.1" "configuring" {
+	list [catch {
+			set h [::dtrace::open -bufsize 123 0]
+			set b [::dtrace::configure $h -bufsize]
+			::dtrace::close $h
+			return [expr {$b == 123}]
+		} result] $result
+} {2 1}
+
+test "simplescripts-2.2" "configuring" {
+	list [catch {
+			set h [::dtrace::open -bufsize 123 0]
+			::dtrace::configure $h -bufsize 321
+			set b [::dtrace::configure $h -bufsize]
+			::dtrace::close $h
+			return [expr {$b == 321}]
+		} result] $result
+} {2 1}
+
+test "simplescripts-2.3" "configuring" {
+	list [catch {
+			set h [::dtrace::open -bufsize 123 0]
+			catch {::dtrace::configure $h -bufsize 321 -fooshmoo 3}
+			set b [::dtrace::configure $h -bufsize]
+			::dtrace::close $h
+			return [expr {$b == 321}]
+		} result] $result
+} {2 1}
+
+
+
+# }}}
+
 # }}}
 
 # Tests requiring root {{{
