@@ -122,6 +122,8 @@ static handle_data *get_hd (
     Tcl_HashEntry *hentry;
 
     if (Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
+	/* We want a newline between Tcl_GetIntFromObj and own message. */
+	Tcl_AppendResult(interp, "\n", NULL);
 	return NULL;
     }
     id = (char*)(intptr_t) _id;
