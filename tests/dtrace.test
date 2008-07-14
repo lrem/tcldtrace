@@ -58,6 +58,13 @@ test "configure-1.3" "configuring invalid handle" {
 
 # }}}
 
+# Ensemble test {{{
+test "ensemble-1.3" "lookin for ensemble" {[expr {[info tclversion] >= 8.5}]} {
+	list [catch {dtrace close} result] $result
+} {1 {wrong # args: should be "dtrace close handle"}}
+
+# }}}
+
 # }}}
 
 # Tests requiring root {{{
