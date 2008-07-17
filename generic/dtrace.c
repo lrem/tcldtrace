@@ -427,6 +427,46 @@ int Configure (
 }
 /*}}}*/
 
+/* Compile {{{
+ *
+ *     Implements the ::dtrace::compile command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	Given program gets compiled.
+ *	Pointer to the compiled program gets registered within the handle
+ *	data, and handle to it set as the command result.
+ */
+
+static int Compile (
+	ClientData cd, 
+	Tcl_Interp *interp, 
+	int objc, 
+	Tcl_Obj *const objv[]) 
+{
+    handle_data *hd;
+
+    if (objc < 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, 
+		"handle program ?{argument0 argument1 ...}?");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = get_hd(interp, objv[1]);
+
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+}
+/*}}}*/
+
 /* Dtrace_DeInit {{{
  *
  *	Exit time cleanup.
@@ -525,6 +565,7 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::open", Open, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::close", Close, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::configure", Configure, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::compile", Compile, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
