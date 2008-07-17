@@ -160,6 +160,7 @@ static void del_hd (
     char *id;
     Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
+    handle_data *hd;
 
     Tcl_GetIntFromObj(interp, __id, &_id);
     id = (char*)(intptr_t) _id;
@@ -171,7 +172,10 @@ static void del_hd (
     if (hentry == NULL) {
 	Tcl_Panic(EXTENSION_NAME " hash entry to be deleted not found");
     }
-    ckfree(Tcl_GetHashValue(hentry));
+
+    hd = Tcl_GetHashValue(hentry);
+    ckfree(hd->programs);
+    ckfree(hd);
     Tcl_DeleteHashEntry(hentry);
 }
 /*}}}*/
