@@ -161,6 +161,8 @@ static void del_hd (
     Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
     handle_data *hd;
+    Tcl_HashSearch pSP;
+    Tcl_HashEntry *phe;
 
     Tcl_GetIntFromObj(interp, __id, &_id);
     id = (char*)(intptr_t) _id;
@@ -174,6 +176,14 @@ static void del_hd (
     }
 
     hd = Tcl_GetHashValue(hentry);
+
+    phe = Tcl_FirstHashEntry(hd->programs, &pSP);
+    while(phe != NULL) {
+	ckfree(Tcl_GetHashValue(phe));
+	phe = Tcl_NextHashEntry(&pSP);
+    }
+    Tcl_DeleteHashTable(hd->programs);
+
     ckfree((char*) hd->programs);
     ckfree((char*) hd);
     Tcl_DeleteHashEntry(hentry);
@@ -563,9 +573,17 @@ void Dtrace_DeInit (
     Tcl_HashSearch searchPtr;
     Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
 
-    while (hentry != NULL)
-    {
+    while (hentry != NULL) {
 	handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
+
+	Tcl_HashSearch pSP;
+	Tcl_HashEntry *phe = Tcl_FirstHashEntry(hd->programs, &pSP);
+	while(phe != NULL) {
+	    ckfree(Tcl_GetHashValue(phe));
+	    phe = Tcl_NextHashEntry(&pSP);
+	}
+	Tcl_DeleteHashTable(hd->programs);
+
 	dtrace_close(hd->handle);
 	ckfree((void*) hd->programs);
 	ckfree((void*) hd);
