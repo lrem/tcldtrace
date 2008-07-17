@@ -218,6 +218,45 @@ static handle_data *new_hd (
 }
 /*}}}*/
 
+/* register_pd {{{
+ *
+ *	Registers a program_data into handle_data.
+ *
+ * Results:
+ *	A Tcl_Obj* identifying the inserted program_data.
+ *
+ * Side effects:
+ *	Hash entry is inserted.
+ *	The static next_free_pid is incremented in a thread-safe way.
+ */
+
+static Tcl_Obj *register_pd (
+	handle_data *hd,
+	program_data *pd)
+{
+    Tcl_HashTable *htable = hd->programs;
+    Tcl_HashEntry *hentry;
+    int isNew;
+    int id;
+
+    if (htable == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash table not found");
+    }
+
+    Tcl_MutexLock(pidMutex);
+    id = next_free_pid;
+    next_free_pid++;
+    Tcl_MutexUnlock(pidMutex);
+
+    hentry = Tcl_CreateHashEntry(htable, (char*) id, &isNew);
+    if (!isNew) {
+	Tcl_Panic(EXTENSION_NAME " duplicate hash table entry");
+    }
+    Tcl_SetHashValue(hentry, pd);
+    return Tcl_NewIntObj(id);
+}
+/*}}}*/
+
 /* Open {{{
  *
  *	Implements the ::dtrace::open command.
@@ -447,6 +486,10 @@ static int Compile (
 	Tcl_Obj *const objv[]) 
 {
     handle_data *hd;
+    program_data *pd;
+    char *source;
+    int argc;
+    char **argv;
 
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, 
@@ -463,6 +506,30 @@ static int Compile (
 	return TCL_ERROR;
     }
 
+    source = Tcl_GetString(objv[2]);
+    pd = (program_data*) ckalloc(sizeof(program_data));
+    argc = objc - 3;
+    argv = (char**) ckalloc(sizeof(char*) * argc);
+    if(objc > 3) {
+	int i, j = 0;
+	for(i = 3; i < objc; i++) {
+	    argv[j++] = Tcl_GetString(objv[i]);
+	}
+    }
+    
+    pd->compiled = dtrace_program_strcompile(hd->handle, source,
+	    DTRACE_PROBESPEC_NAME, DTRACE_C_PSPEC, argc, argv);
+
+    ckfree((char*) argv);
+
+    if(pd->compiled == NULL) {
+	    Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	    ckfree((char*) pd);
+	    return TCL_ERROR;
+    }
+ 
+    Tcl_SetObjResult(interp, register_pd(hd, pd));
     return TCL_OK;
 }
 /*}}}*/

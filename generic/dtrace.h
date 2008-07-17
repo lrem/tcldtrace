@@ -52,7 +52,12 @@ typedef struct options_s {
 typedef struct handle_data {
     dtrace_hdl_t *handle; 
     options_t options;
+    Tcl_HashTable *programs;
 } handle_data;
+
+typedef struct program_data {
+    dtrace_prog_t *compiled;
+} program_data;
 
 const char *basic_options[] = {
     "-flowindent",
@@ -67,6 +72,8 @@ const char *basic_options[] = {
  */
 TCL_DECLARE_MUTEX(idMutex)
 int next_free_id = 1;
+TCL_DECLARE_MUTEX(pidMutex)
+int next_free_pid = 1;
 
 #endif /* __DTRACE_H */
 
