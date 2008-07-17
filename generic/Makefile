@@ -21,6 +21,10 @@ dtrace${SHLIB_SUFFIX}: dtrace.c dtrace.h
 	${CC} ${CFLAGS} -o $@ $< ${SHLIB_LD_LIBS}
 
 clean:
-	rm -f dtrace${SHLIB_SUFFIX}
-	
-.PHONY: all clean
+	rm -rf dtrace${SHLIB_SUFFIX}*
+
+test: dtrace${SHLIB_SUFFIX}
+	echo "load dtrace${SHLIB_SUFFIX}; source ../tests/dtrace.test" | \
+	TCLTEST_OPTIONS="${TCLTEST_OPTIONS}" tclsh
+
+.PHONY: all clean test

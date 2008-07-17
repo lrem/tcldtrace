@@ -5,6 +5,8 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 	namespace import ::tcltest::*
 }
 
+testConstraint tcl85 [package vsatisfies [package present Tcl] 8.5]
+
 package require dtrace
 
 # Tests not requiring root {{{
@@ -71,8 +73,7 @@ test "configure-1.3" "compiling with invalid handle" -body {
 # }}}
 
 # Ensemble test {{{
-test "ensemble-1.3" "lookin for ensemble" -constraints \
-				{[expr {[info tclversion] >= 8.5}]} -body {
+test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close
 } -returnCodes {1} -result {wrong # args: should be "dtrace close handle"}
 
