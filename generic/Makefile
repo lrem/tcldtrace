@@ -7,7 +7,7 @@ ifeq ($(shell uname -s),Darwin)
     SHLIB_SUFFIX        = .dylib
 else
     INCLUDES            = -I./solaris
-    SHLIB_CFLAGS        = -Kpic -G -z text -z defs
+    SHLIB_CFLAGS        = -Kpic -g -G -z text -z defs
     SHLIB_SUFFIX        = .so
 endif
 

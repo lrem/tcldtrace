@@ -174,8 +174,8 @@ static void del_hd (
     }
 
     hd = Tcl_GetHashValue(hentry);
-    ckfree(hd->programs);
-    ckfree(hd);
+    ckfree((char*) hd->programs);
+    ckfree((char*) hd);
     Tcl_DeleteHashEntry(hentry);
 }
 /*}}}*/
@@ -567,6 +567,7 @@ void Dtrace_DeInit (
     {
 	handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
 	dtrace_close(hd->handle);
+	ckfree((void*) hd->programs);
 	ckfree((void*) hd);
 	hentry = Tcl_NextHashEntry(&searchPtr);
     }
