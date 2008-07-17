@@ -50,7 +50,7 @@ typedef struct options_s {
 } options_t;
 
 typedef struct handle_data {
-    dtrace_hdl_t *handle; 
+    dtrace_hdl_t *handle;
     options_t options;
     Tcl_HashTable *programs;
 } handle_data;

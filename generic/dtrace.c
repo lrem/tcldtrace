@@ -42,15 +42,15 @@
  */
 
 static char *get_option (
-	handle_data *hd, 
-	const char *option) 
+	handle_data *hd,
+	const char *option)
 {
     static char value[12];
 
     if (internal_option(option)) {
 	/* Only one defined for now. */
 	snprintf(value, 12, "%d", hd->options.foldpdesc);
-    } 
+    }
     else {
 	dtrace_optval_t opt;
 
@@ -79,8 +79,8 @@ static char *get_option (
  */
 
 static int set_option (
-	handle_data *hd, 
-	const char *option, 
+	handle_data *hd,
+	const char *option,
 	const char *value)
 {
     if (internal_option(option)) {
@@ -91,7 +91,7 @@ static int set_option (
 	else {
 	    hd->options.foldpdesc = 1;
 	}
-    } 
+    }
     else if (dtrace_setopt(hd->handle, option+1, value) != 0) {
 	return 0;
     }
@@ -113,7 +113,7 @@ static int set_option (
  */
 
 static handle_data *get_hd (
-	Tcl_Interp *interp, 
+	Tcl_Interp *interp,
 	Tcl_Obj *__id)
 {
     int _id;
@@ -153,7 +153,7 @@ static handle_data *get_hd (
  */
 
 static void del_hd (
-	Tcl_Interp *interp, 
+	Tcl_Interp *interp,
 	Tcl_Obj *__id)
 {
     int _id;
@@ -191,7 +191,7 @@ static void del_hd (
  */
 
 static handle_data *new_hd (
-	Tcl_Interp *interp, 
+	Tcl_Interp *interp,
 	int *id)
 {
     Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
@@ -271,13 +271,13 @@ static Tcl_Obj *register_pd (
  */
 
 static int Open (
-	ClientData cd, 
-	Tcl_Interp *interp, 
-	int objc, 
-	Tcl_Obj *const objv[]) 
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
 {
     int flags = 0;
-    int error; 
+    int error;
     int id;
     int i;
     handle_data *hd;
@@ -349,10 +349,10 @@ static int Open (
  */
 
 static int Close (
-	ClientData cd, 
-	Tcl_Interp *interp, 
-	int objc, 
-	Tcl_Obj *const objv[]) 
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
 {
     handle_data *hd;
 
@@ -390,10 +390,10 @@ static int Close (
  */
 
 int Configure (
-	ClientData cd, 
-	Tcl_Interp *interp, 
-	int objc, 
-	Tcl_Obj *const objv[]) 
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
 {
     handle_data *hd;
     int i;
@@ -480,10 +480,10 @@ int Configure (
  */
 
 static int Compile (
-	ClientData cd, 
-	Tcl_Interp *interp, 
-	int objc, 
-	Tcl_Obj *const objv[]) 
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
 {
     handle_data *hd;
     program_data *pd;
@@ -492,7 +492,7 @@ static int Compile (
     char **argv;
 
     if (objc < 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, 
+	Tcl_WrongNumArgs(interp, 1, objv,
 		"handle program ?{argument0 argument1 ...}?");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
@@ -516,7 +516,7 @@ static int Compile (
 	    argv[j++] = Tcl_GetString(objv[i]);
 	}
     }
-    
+
     pd->compiled = dtrace_program_strcompile(hd->handle, source,
 	    DTRACE_PROBESPEC_NAME, DTRACE_C_PSPEC, argc, argv);
 
@@ -528,7 +528,7 @@ static int Compile (
 	    ckfree((char*) pd);
 	    return TCL_ERROR;
     }
- 
+
     Tcl_SetObjResult(interp, register_pd(hd, pd));
     return TCL_OK;
 }
@@ -575,7 +575,7 @@ void Dtrace_DeInit (
  */
 
 void onDestroy (
-	ClientData htable, 
+	ClientData htable,
 	Tcl_Interp *interp)
 {
     Dtrace_DeInit(htable);
@@ -601,7 +601,7 @@ void onDestroy (
  */
 
 int Dtrace_Init (
-	Tcl_Interp *interp) 
+	Tcl_Interp *interp)
 {
 
     Tcl_Namespace *namespace;
