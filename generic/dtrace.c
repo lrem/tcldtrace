@@ -209,6 +209,9 @@ static handle_data *new_hd (
     Tcl_MutexUnlock(idMutex);
 
     hd = (handle_data*) ckalloc(sizeof(handle_data));
+    hd->programs = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(hd->programs, TCL_ONE_WORD_KEYS);
+
     hentry = Tcl_CreateHashEntry(htable, (char*) *id, &isNew);
     if (!isNew) {
 	Tcl_Panic(EXTENSION_NAME " duplicate hash table entry");
@@ -523,10 +526,15 @@ static int Compile (
     ckfree((char*) argv);
 
     if(pd->compiled == NULL) {
-	    Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
-	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	    ckfree((char*) pd);
-	    return TCL_ERROR;
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
+	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+
+	ckfree((char*) pd);
+	return TCL_ERROR;
     }
 
     Tcl_SetObjResult(interp, register_pd(hd, pd));
