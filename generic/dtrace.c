@@ -339,7 +339,7 @@ static int Close (
 }
 /*}}}*/
 
-/* Conf {{{
+/* Configure {{{
  *
  *	Implements the ::dtrace::configure command.
  *
@@ -350,7 +350,7 @@ static int Close (
  *	Given options are set.
  */
 
-int Conf (
+int Configure (
 	ClientData cd, 
 	Tcl_Interp *interp, 
 	int objc, 
@@ -524,7 +524,7 @@ int Dtrace_Init (
 
     Tcl_CreateObjCommand(interp, NS "::open", Open, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::close", Close, NULL, NULL);
-    Tcl_CreateObjCommand(interp, NS "::configure", Conf, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::configure", Configure, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
