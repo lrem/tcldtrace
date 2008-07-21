@@ -184,7 +184,7 @@ test "exec-1.5" "exec for BEGIN" -setup {
 } -result {aggregates 0 recgens 1 matches 1 speculations 0}
 
 
-test "exec-1.5" "entries count" -setup {
+test "exec-1.6" "entries count" -setup {
 	set h [::dtrace::open 1]
 	set p [::dtrace::compile $h {:::entry}]
 } -body {
