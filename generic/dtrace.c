@@ -556,6 +556,38 @@ static int Compile (
 }
 /*}}}*/
 
+/* Exec {{{
+ *
+ *     Implements the ::dtrace::exec command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ * 	Program gest executed.
+ * 	Result is set to a dict with executed program info.
+ */
+
+static int Exec (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    handle_data *hd;
+    program_data *pd;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, register_pd(hd, pd));
+    return TCL_OK;
+}
+/*}}}*/
+
 /* Dtrace_DeInit {{{
  *
  *	Exit time cleanup.
