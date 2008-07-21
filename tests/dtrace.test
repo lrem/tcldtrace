@@ -80,6 +80,33 @@ test "compile-1.3" "successful compiling" -setup {
 
 # }}}
 
+# ::dtrace::info {{{
+
+test "info-1.1" "too few arguments for info" -body {
+	::dtrace::info
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::info compiled_program"}
+
+test "info-1.2" "too few much for info" -body {
+	::dtrace::info a b c
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::info compiled_program"}
+
+test "info-1.4" "info with invalid program" -body {
+	::dtrace::info -1
+} -returnCodes {1} -result {::dtrace::info bad program handle}
+
+test "info-1.5" "info for BEGIN" -setup {
+	set h [::dtrace::open 0]
+	set p [::dtrace::compile $h {:::BEGIN}]
+} -body {
+	::dtrace::info $p
+} -cleanup {
+	::dtrace::close $h
+} -result {aggregates 0 recgens 1 matches 0 speculations 0}
+
+# }}}
+
 # Ensemble test {{{
 test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close
