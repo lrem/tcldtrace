@@ -120,6 +120,7 @@ static handle_data *get_hd (
     char *id;
     Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
+    dtrace_data *dd;
 
     if (Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
 	/* We want a newline between Tcl_GetIntFromObj and own message. */
@@ -127,7 +128,11 @@ static handle_data *get_hd (
 	return NULL;
     }
     id = (char*)(intptr_t) _id;
-    htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    if (dd == NULL) {
+	Tcl_Panic(EXTENSION_NAME " dtrace data not found");
+    }
+    htable = dd->handles;
     if (htable == NULL) {
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
@@ -249,14 +254,20 @@ static handle_data *new_hd (
  */
 
 static Tcl_Obj *register_pd (
+	Tcl_Interp *interp,
 	handle_data *hd,
 	program_data *pd)
 {
-    Tcl_HashTable *htable = hd->programs;
+    dtrace_data *dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
     int isNew;
     int id;
 
+    if (dd == NULL) {
+	Tcl_Panic(EXTENSION_NAME " dtrace data not found");
+    }
+    htable = dd->programs;
     if (htable == NULL) {
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
@@ -552,7 +563,7 @@ static int Compile (
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, register_pd(hd, pd));
+    Tcl_SetObjResult(interp, register_pd(interp, hd, pd));
     return TCL_OK;
 }
 /*}}}*/
@@ -584,7 +595,7 @@ static int Exec (
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, register_pd(hd, pd));
+    Tcl_SetObjResult(interp, register_pd(interp, hd, pd));
     return TCL_OK;
 }
 /*}}}*/
