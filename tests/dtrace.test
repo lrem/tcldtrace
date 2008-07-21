@@ -158,6 +158,45 @@ test "simplescripts-2.3" "configuring" -body {
 
 # Tests requiring root {{{
 
+# ::dtrace::exec {{{
+
+test "exec-1.1" "too few arguments for exec" -body {
+	::dtrace::exec
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::exec compiled_program"}
+
+test "exec-1.2" "too few much for exec" -body {
+	::dtrace::exec a b c
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::exec compiled_program"}
+
+test "exec-1.4" "exec with invalid program" -body {
+	::dtrace::exec -1
+} -returnCodes {1} -result {::dtrace::exec bad program handle}
+
+test "exec-1.5" "exec for BEGIN" -setup {
+	set h [::dtrace::open 1]
+	set p [::dtrace::compile $h {:::BEGIN}]
+} -body {
+	::dtrace::exec $p
+} -cleanup {
+	::dtrace::close $h
+} -result {aggregates 0 recgens 1 matches 1 speculations 0}
+
+
+test "exec-1.5" "entries count" -setup {
+	set h [::dtrace::open 1]
+	set p [::dtrace::compile $h {:::entry}]
+} -body {
+	lindex [::dtrace::exec $p] 5
+} -cleanup {
+	::dtrace::close $h
+} -match regexp -result {[1-9][0-9]+}  
+# Multiple matches
+
+# }}}
+
+
 # }}}
 
 cleanupTests
