@@ -160,13 +160,17 @@ static void del_hd (
     char *id;
     Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
+    dtrace_data *dd;
     handle_data *hd;
-    Tcl_HashSearch pSP;
-    Tcl_HashEntry *phe;
+    Tcl_HashSearch searchPtr;
 
     Tcl_GetIntFromObj(interp, __id, &_id);
     id = (char*)(intptr_t) _id;
-    htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    if (dd == NULL) {
+	Tcl_Panic(EXTENSION_NAME " dtrace data not found");
+    }
+    htable = dd->handles;
     if (htable == NULL) {
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
@@ -176,17 +180,15 @@ static void del_hd (
     }
 
     hd = Tcl_GetHashValue(hentry);
-
-    phe = Tcl_FirstHashEntry(hd->programs, &pSP);
-    while(phe != NULL) {
-	ckfree(Tcl_GetHashValue(phe));
-	phe = Tcl_NextHashEntry(&pSP);
-    }
-    Tcl_DeleteHashTable(hd->programs);
-
-    ckfree((char*) hd->programs);
     ckfree((char*) hd);
     Tcl_DeleteHashEntry(hentry);
+
+    hentry = Tcl_FirstHashEntry(dd->programs, &searchPtr);
+    while(hentry != NULL) {
+	ckfree(Tcl_GetHashValue(hentry));
+	Tcl_DeleteHashEntry(hentry);
+	hentry = Tcl_NextHashEntry(&searchPtr);
+    }
 }
 /*}}}*/
 
@@ -208,7 +210,8 @@ static handle_data *new_hd (
 	Tcl_Interp *interp,
 	int *id)
 {
-    Tcl_HashTable *htable = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    dtrace_data *dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    Tcl_HashTable *htable = dd->handles;
     Tcl_HashEntry *hentry;
     handle_data *hd;
     int isNew;
@@ -223,8 +226,6 @@ static handle_data *new_hd (
     Tcl_MutexUnlock(idMutex);
 
     hd = (handle_data*) ckalloc(sizeof(handle_data));
-    hd->programs = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
-    Tcl_InitHashTable(hd->programs, TCL_ONE_WORD_KEYS);
 
     hentry = Tcl_CreateHashEntry(htable, (char*) *id, &isNew);
     if (!isNew) {
@@ -597,31 +598,35 @@ static int Exec (
  *
  * Side effects:
  *	All remaining dtrace_hdl_t's are closed.
+ *	All remaining memory is freed.
  */
 
 void Dtrace_DeInit (
-	ClientData htable)
+	ClientData dd)
 {
+    Tcl_HashTable *htable = ((dtrace_data*) dd)->handles;
     Tcl_HashSearch searchPtr;
     Tcl_HashEntry *hentry = Tcl_FirstHashEntry(htable, &searchPtr);
 
     while (hentry != NULL) {
 	handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
 
-	Tcl_HashSearch pSP;
-	Tcl_HashEntry *phe = Tcl_FirstHashEntry(hd->programs, &pSP);
-	while(phe != NULL) {
-	    ckfree(Tcl_GetHashValue(phe));
-	    phe = Tcl_NextHashEntry(&pSP);
-	}
-	Tcl_DeleteHashTable(hd->programs);
 
 	dtrace_close(hd->handle);
-	ckfree((void*) hd->programs);
 	ckfree((void*) hd);
 	hentry = Tcl_NextHashEntry(&searchPtr);
     }
     Tcl_DeleteHashTable(htable);
+    ckfree((void*) htable);
+
+    htable = ((dtrace_data*) dd)->programs;
+    hentry = Tcl_FirstHashEntry(htable, &searchPtr);
+    while(hentry != NULL) {
+	ckfree(Tcl_GetHashValue(hentry));
+	hentry = Tcl_NextHashEntry(&searchPtr);
+    }
+    Tcl_DeleteHashTable(htable);
+    ckfree((void*) htable);
 }
 /*}}}*/
 
@@ -634,14 +639,14 @@ void Dtrace_DeInit (
  *
  * Side effects:
  *      Dtrace_DeInit is called to clean up.
- *      Interpreter associated hash table is erased.
+ *      Interpreter associated data is erased.
  */
 
 void onDestroy (
-	ClientData htable,
+	ClientData dd,
 	Tcl_Interp *interp)
 {
-    Dtrace_DeInit(htable);
+    Dtrace_DeInit(dd);
 }
 /*}}}*/
 
@@ -661,6 +666,7 @@ void onDestroy (
  *		::dtrace::open
  *		::dtrace::close
  *		::dtrace::configure
+ *		::dtrace::exec
  */
 
 int Dtrace_Init (
@@ -670,7 +676,7 @@ int Dtrace_Init (
     Tcl_Namespace *namespace;
     int major;
     int minor;
-    Tcl_HashTable *htable;
+    dtrace_data *dd;
 
     /* As I understood it, Tcl_InitStubs is to make the extension linkable
      * against any version of interpreter that supports it. (Not only
@@ -681,10 +687,13 @@ int Dtrace_Init (
 	return TCL_ERROR;
     }
 
-    htable = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
-    Tcl_InitHashTable(htable, TCL_ONE_WORD_KEYS);
-    Tcl_SetAssocData(interp, EXTENSION_NAME, onDestroy, htable);
-    Tcl_CreateExitHandler(Dtrace_DeInit, htable);
+    dd = (dtrace_data*) ckalloc(sizeof(dtrace_data));
+    dd->handles = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(dd->handles, TCL_ONE_WORD_KEYS);
+    dd->programs = (Tcl_HashTable*) ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(dd->programs, TCL_ONE_WORD_KEYS);
+    Tcl_SetAssocData(interp, EXTENSION_NAME, onDestroy, dd);
+    Tcl_CreateExitHandler(Dtrace_DeInit, dd);
 
     if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
 	return TCL_ERROR;

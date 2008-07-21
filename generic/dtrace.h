@@ -49,14 +49,19 @@ typedef struct options_s {
     int foldpdesc;
 } options_t;
 
+typedef struct dtrace_data {
+    Tcl_HashTable *handles;
+    Tcl_HashTable *programs;
+} dtrace_data;
+
 typedef struct handle_data {
     dtrace_hdl_t *handle;
     options_t options;
-    Tcl_HashTable *programs;
 } handle_data;
 
 typedef struct program_data {
     dtrace_prog_t *compiled;
+    handle_data *hd;
 } program_data;
 
 const char *basic_options[] = {
