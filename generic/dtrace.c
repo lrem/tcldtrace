@@ -289,6 +289,50 @@ static Tcl_Obj *register_pd (
 }
 /*}}}*/
 
+/* get_pd {{{
+ *
+ *	Given a Tcl-level program handle, gets the corresponding program_data.
+ *
+ * Results:
+ *	A pointer to program_data structure on succes.
+ *	NULL on failure.
+ *
+ * Side effects:
+ *	None.
+ */
+
+static program_data *get_pd (
+	Tcl_Interp *interp,
+	Tcl_Obj *__id)
+{
+    int _id;
+    char *id;
+    Tcl_HashTable *htable;
+    Tcl_HashEntry *hentry;
+    dtrace_data *dd;
+
+    if (Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
+	/* We want a newline between Tcl_GetIntFromObj and own message. */
+	Tcl_AppendResult(interp, "\n", NULL);
+	return NULL;
+    }
+    id = (char*)(intptr_t) _id;
+    dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
+    if (dd == NULL) {
+	Tcl_Panic(EXTENSION_NAME " dtrace data not found");
+    }
+    htable = dd->programs;
+    if (htable == NULL) {
+	Tcl_Panic(EXTENSION_NAME " hash table not found");
+    }
+    hentry = Tcl_FindHashEntry(htable, id);
+    if (hentry == NULL) {
+	return NULL;
+    }
+    return Tcl_GetHashValue(hentry);
+}
+/*}}}*/
+
 /* Open {{{
  *
  *	Implements the ::dtrace::open command.
@@ -591,6 +635,8 @@ static int Exec (
 {
     handle_data *hd;
     program_data *pd;
+    dtrace_proginfo_t info;
+    Tcl_Obj *results[8];
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program");
@@ -598,7 +644,36 @@ static int Exec (
 	return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, register_pd(interp, hd, pd));
+    pd = get_pd(interp, objv[1]);
+    if (pd == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad program handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = pd->hd;
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    if (dtrace_program_exec(hd->handle, pd->compiled, &info) == -1) {
+    	Tcl_AppendResult(interp, COMMAND,  " failed enable the probe", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "EXEC", NULL);
+	return TCL_ERROR;
+    }
+
+    results[0] = Tcl_NewStringObj("aggregates", -1);
+    results[1] = Tcl_NewIntObj(info.dpi_aggregates);
+    results[2] = Tcl_NewStringObj("recgens", -1);
+    results[3] = Tcl_NewIntObj(info.dpi_recgens);
+    results[4] = Tcl_NewStringObj("matches", -1);
+    results[5] = Tcl_NewIntObj(info.dpi_matches);
+    results[6] = Tcl_NewStringObj("speculations", -1);
+    results[7] = Tcl_NewIntObj(info.dpi_speculations);
+
+    Tcl_SetObjResult(interp, Tcl_NewListObj(8, results));
     return TCL_OK;
 }
 /*}}}*/
