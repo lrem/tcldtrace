@@ -281,6 +281,9 @@ static Tcl_Obj *register_pd (
     if (!isNew) {
 	Tcl_Panic(EXTENSION_NAME " duplicate hash table entry");
     }
+
+    pd->hd = hd;
+
     Tcl_SetHashValue(hentry, pd);
     return Tcl_NewIntObj(id);
 }
