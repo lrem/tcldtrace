@@ -615,28 +615,30 @@ static int Compile (
 }
 /*}}}*/
 
-/* Exec {{{
+/* Exec_or_Info {{{
  *
- *     Implements the ::dtrace::exec command.
+ *	This is internal to not duplicate code between Exec and Info.
  *
  * Results:
  *	Standard Tcl result.
  *
  * Side effects:
- * 	Program gest executed.
+ * 	Program gets executed (probably).
  * 	Result is set to a dict with executed program info.
  */
 
-static int Exec (
+static int Exec_or_Info (
 	ClientData cd,
 	Tcl_Interp *interp,
 	int objc,
-	Tcl_Obj *const objv[])
+	Tcl_Obj *const objv[],
+	int exec)
 {
     handle_data *hd;
     program_data *pd;
     dtrace_proginfo_t info;
     Tcl_Obj *results[8];
+    int exec_result;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program");
@@ -658,7 +660,14 @@ static int Exec (
 	return TCL_ERROR;
     }
 
-    if (dtrace_program_exec(hd->handle, pd->compiled, &info) == -1) {
+    if(exec) {
+	exec_result = dtrace_program_exec(hd->handle, pd->compiled, &info);
+    }
+    else {
+	dtrace_program_info(hd->handle, pd->compiled, &info);
+	exec_result = 0;
+    }
+    if (exec_result == -1) {
     	Tcl_AppendResult(interp, COMMAND,  " failed enable the probe", NULL);
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "EXEC", NULL);
 	return TCL_ERROR;
@@ -675,6 +684,49 @@ static int Exec (
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(8, results));
     return TCL_OK;
+}
+/*}}}*/
+
+/* Exec {{{
+ *
+ *     Implements the ::dtrace::exec command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ * 	Program gets executed.
+ * 	Result is set to a dict with executed program info.
+ */
+
+static int Exec (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    return Exec_or_Info (cd, interp, objc, objv, 1);
+}
+/*}}}*/
+
+/* Info {{{
+ *
+ *     Implements the ::dtrace::info command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ * 	Result is set to a dict with executed program info.
+ */
+
+static int Info (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    return Exec_or_Info (cd, interp, objc, objv, 0);
 }
 /*}}}*/
 
@@ -756,6 +808,7 @@ void onDestroy (
  *		::dtrace::close
  *		::dtrace::configure
  *		::dtrace::exec
+ *		::dtrace::info
  */
 
 int Dtrace_Init (
@@ -794,6 +847,8 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::close", Close, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::configure", Configure, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::compile", Compile, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::exec", Exec, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::info", Info, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
