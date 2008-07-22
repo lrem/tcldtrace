@@ -384,6 +384,7 @@ static int Open (
     if (hd->handle == NULL) {
 	char errnum[16];
 
+	del_hd(interp, Tcl_NewIntObj(id));
 	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
 		dtrace_errmsg(NULL, error), NULL);
 	snprintf(errnum, 16, "%d", error);
@@ -891,7 +892,6 @@ void Dtrace_DeInit (
 
     while (hentry != NULL) {
 	handle_data *hd = (handle_data*) Tcl_GetHashValue(hentry);
-
 
 	dtrace_close(hd->handle);
 	ckfree((void*) hd);
