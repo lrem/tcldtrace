@@ -749,6 +749,7 @@ static int Go (
 	Tcl_Obj *const objv[])
 {
     handle_data *hd;
+    int i;
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, 
@@ -763,6 +764,47 @@ static int Go (
 	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
 	return TCL_ERROR;
+    }
+
+    for (i = 2; i < objc; i+=2) {
+	int callback;
+	int lobjc;
+	Tcl_Obj **lobjv;
+
+	if (Tcl_GetIndexFromObj(interp, objv[i], callbackNames, 
+		    "callback name", 0, &callback) != TCL_OK) {
+	    /* Tcl_GetIndexFromObj prints a message for us. */
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	    return TCL_ERROR;
+	}
+
+	if (Tcl_ListObjGetElements(interp, objv[i+1], &lobjc, &lobjv) 
+		!= TCL_OK || lobjc != 2) {
+	    /* Tcl_ListObjGetElements prints a message for us. */
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	    return TCL_ERROR;
+	}
+
+	switch (callback) {
+	    case cb_probe_desc:
+		hd->probe_desc = lobjv[0];
+		hd->probe_output_args = lobjv[1];
+		break;
+	    case cb_probe_output:
+		hd->probe_output = lobjv[0];
+		hd->probe_output_args = lobjv[1];
+		break;
+	    case cb_drop:
+		hd->drop = lobjv[0];
+		hd->drop_args = lobjv[1];
+		break;
+	    case cb_proc:
+		hd->proc = lobjv[0];
+		hd->proc_args = lobjv[1];
+		break;
+	    default:
+		Tcl_Panic(EXTENSION_NAME " bad callback id");
+	}
     }
 
     if (dtrace_go(hd->handle) == -1) {

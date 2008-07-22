@@ -57,6 +57,16 @@ typedef struct dtrace_data {
 typedef struct handle_data {
     dtrace_hdl_t *handle;
     options_t options;
+
+    /* Callbacks and args for them */
+    Tcl_Obj *probe_desc;
+    Tcl_Obj *probe_desc_args;
+    Tcl_Obj *probe_output;
+    Tcl_Obj *probe_output_args;
+    Tcl_Obj *drop;
+    Tcl_Obj *drop_args;
+    Tcl_Obj *proc;
+    Tcl_Obj *proc_args;
 } handle_data;
 
 typedef struct program_data {
@@ -79,6 +89,23 @@ TCL_DECLARE_MUTEX(idMutex)
 int next_free_id = 1;
 TCL_DECLARE_MUTEX(pidMutex)
 int next_free_pid = 1;
+
+static enum callbacks {
+    cb_probe_desc, 
+    cb_probe_output, 
+    cb_drop, 
+    cb_error, 
+    cb_proc
+};
+
+static const char *callbackNames[] = {
+    "probe_desc", 
+    "probe_output", 
+    "drop",
+    "error", 
+    "proc", 
+    NULL
+};
 
 #endif /* __DTRACE_H */
 
