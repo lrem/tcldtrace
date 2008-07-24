@@ -333,6 +333,45 @@ static program_data *get_pd (
 }
 /*}}}*/
 
+/* chew {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int chew (
+	const dtrace_probedata_t *data,
+	void *arg)
+{
+    return DTRACE_CONSUME_THIS;
+}
+/*}}}*/
+
+/* chewrec {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int chewrec (
+	const dtrace_probedata_t *data,
+	const dtrace_recdesc_t *rec,
+	void *arg)
+{
+    return DTRACE_CONSUME_THIS;
+}
+/*}}}*/
+
 /* Open {{{
  *
  *	Implements the ::dtrace::open command.
@@ -878,6 +917,67 @@ static int Stop (
 }
 /*}}}*/
 
+/* Process {{{
+ *
+ *     Implements the ::dtrace::process command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	Callbacks are called for awaiting data.
+ */
+
+static int Process (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    handle_data *hd;
+    int sleep = 0;
+
+    if (objc < 2 || objc > 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "handle ?sleep?");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = get_hd(interp, objv[1]);
+
+    if(objc == 3) {
+	if (Tcl_GetBooleanFromObj(interp, objv[2], &sleep) != TCL_OK) {
+	    Tcl_AppendResult(interp, "\n", COMMAND, " bad usage", NULL);
+	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	    return TCL_ERROR;
+	}
+    }
+
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    if (sleep) {
+	dtrace_sleep(hd->handle);
+    }
+
+    if (dtrace_work(hd->handle, NULL, chew, chewrec, NULL) == -1) {
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
+	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+	
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+}
+/*}}}*/
+
 /* Dtrace_DeInit {{{
  *
  *	Exit time cleanup.
@@ -958,6 +1058,7 @@ void onDestroy (
  *		::dtrace::info
  *		::dtrace::go
  *		::dtrace::stop
+ *		::dtrace::process
  */
 
 int Dtrace_Init (
@@ -1000,6 +1101,7 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::info", Info, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::go", Go, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::stop", Stop, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::process", Process, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
