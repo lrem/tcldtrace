@@ -157,7 +157,8 @@ test "go-1.5" "go without args for callback" -setup {
 	::dtrace::go $h probe_output {cb_probe_output}
 } -cleanup {
 	::dtrace::close $h
-} -returnCodes {1} -result {callback spec should be {proc {?arg0 arg1 ...?}}}
+} -returnCodes {1} -result "callback spec should be {proc {?arg0 arg1 ...?}}"
+# I know that "" stands out here, but it was breaking the folds
 
 test "go-1.6" "go with non-instrumenting handle" -setup {
 	set h [::dtrace::open 0]
