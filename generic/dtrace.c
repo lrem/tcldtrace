@@ -752,7 +752,7 @@ static int Go (
     handle_data *hd;
     int i;
 
-    if (objc < 2) {
+    if (objc < 2 || objc % 2 == 1) {
 	Tcl_WrongNumArgs(interp, 1, objv, 
 		"handle ?callback {proc ?args?} ...?");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
@@ -781,7 +781,11 @@ static int Go (
 
 	if (Tcl_ListObjGetElements(interp, objv[i+1], &lobjc, &lobjv) 
 		!= TCL_OK || lobjc != 2) {
-	    /* Tcl_ListObjGetElements prints a message for us. */
+	    /* Tcl_ListObjGetElements prints a message for us. 
+	     * But we want to instruct how to do it right.*/
+	    Tcl_AppendResult(interp, 
+		    "callback spec should be {proc {?arg0 arg1 ...?}}", 
+		    NULL);
 	    Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	    return TCL_ERROR;
 	}

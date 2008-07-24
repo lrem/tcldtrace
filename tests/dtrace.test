@@ -165,7 +165,7 @@ test "exec-1.1" "too few arguments for exec" -body {
 } -returnCodes {1} \
 -result {wrong # args: should be "::dtrace::exec compiled_program"}
 
-test "exec-1.2" "too few much for exec" -body {
+test "exec-1.2" "too much much for exec" -body {
 	::dtrace::exec a b c
 } -returnCodes {1} \
 -result {wrong # args: should be "::dtrace::exec compiled_program"}
@@ -193,6 +193,58 @@ test "exec-1.6" "entries count" -setup {
 	::dtrace::close $h
 } -match regexp -result {[1-9][0-9]+}  
 # Multiple matches
+
+# }}}
+
+# ::dtrace::go {{{
+
+test "go-1.1" "too few arguments for go" -body {
+	::dtrace::go
+} -returnCodes {1} -result \
+{wrong # args: should be "::dtrace::go handle ?callback {proc ?args?} ...?"}
+
+test "go-1.2" "go with callback name and no proc" -body {
+	::dtrace::go $h probe_output
+} -returnCodes {1} -result \
+{wrong # args: should be "::dtrace::go handle ?callback {proc ?args?} ...?"}
+
+
+test "go-1.3" "go with invalid handle" -body {
+	::dtrace::go -1
+} -returnCodes {1} -result {::dtrace::go bad handle}
+
+test "go-1.4" "go with invalid callback" -setup {
+	set h [::dtrace open 0]
+} -body {
+	::dtrace::go $h fooshmoo {cb_fooshmoo {arg0 arg1}}
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {bad callback name "fooshmoo":\
+must be probe_desc, probe_output, drop, error, or proc}
+
+test "go-1.5" "go without args for callback" -setup {
+	set h [::dtrace::open 0]
+} -body {
+	::dtrace::go $h probe_output {cb_probe_output}
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {callback spec should be {proc {?arg0 arg1 ...?}}}
+
+test "go-1.6" "go with non-instrumenting handle" -setup {
+	set h [::dtrace::open 0]
+} -body {
+	::dtrace::go $h
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {::dtrace::go libdtrace error: Bad file number}
+
+test "go-1.7" "simply go" -setup {
+	set h [::dtrace open]
+} -body {
+	::dtrace::go $h
+} -cleanup {
+	::dtrace::close $h
+} 
 
 # }}}
 
