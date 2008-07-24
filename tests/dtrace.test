@@ -254,6 +254,7 @@ test "exec-2.2" "entries count" -setup {
 # }}}
 
 # ::dtrace::go {{{
+
 test "go-2.1" "simply go" -setup {
 	set h [::dtrace open]
 } -body {
@@ -261,6 +262,16 @@ test "go-2.1" "simply go" -setup {
 } -cleanup {
 	::dtrace::close $h
 } 
+
+test "go-2.2" "go and register all callbacks" -setup {
+	set h [::dtrace open]
+} -body {
+	::dtrace::go $h probe_desc {cb_probe_desc {arg0 arg1}} \
+	probe_output {cb_probe_output {arg0}} drop {cb_drop {}} \
+	error {cb_error {}} proc {cp_proc {arg0 arg1 arg2 arg3}}
+} -cleanup {
+	::dtrace::close $h
+}
 
 # }}}
 

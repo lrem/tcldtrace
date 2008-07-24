@@ -65,6 +65,8 @@ typedef struct handle_data {
     Tcl_Obj *probe_output_args;
     Tcl_Obj *drop;
     Tcl_Obj *drop_args;
+    Tcl_Obj *error;
+    Tcl_Obj *error_args;
     Tcl_Obj *proc;
     Tcl_Obj *proc_args;
 } handle_data;

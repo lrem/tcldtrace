@@ -803,6 +803,9 @@ static int Go (
 		hd->drop = lobjv[0];
 		hd->drop_args = lobjv[1];
 		break;
+	    case cb_error:
+		hd->error = lobjv[0];
+		hd->error_args = lobjv[1];
 	    case cb_proc:
 		hd->proc = lobjv[0];
 		hd->proc_args = lobjv[1];
