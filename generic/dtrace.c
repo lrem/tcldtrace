@@ -372,6 +372,82 @@ static int chewrec (
 }
 /*}}}*/
 
+/* bufhandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int bufhandler (
+	const dtrace_bufdata_t *bufdata,
+	void *arg)
+{
+    return DTRACE_CONSUME_THIS;
+}
+/*}}}*/
+
+/* drophandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int drophandler (
+	const dtrace_dropdata_t *dropdata,
+	void *arg)
+{
+    return DTRACE_CONSUME_THIS;
+}
+/*}}}*/
+
+/* errhandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int errhandler (
+	const dtrace_errdata_t *errdata,
+	void *arg)
+{
+    return DTRACE_CONSUME_THIS;
+}
+/*}}}*/
+
+/* prochandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_CONSUME_THIS upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static void prochandler (
+	struct ps_prochandle *P,
+	const char *msg,
+	void *arg)
+{
+}
+/*}}}*/
+
 /* Open {{{
  *
  *	Implements the ::dtrace::open command.
@@ -444,6 +520,54 @@ static int Open (
 	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
 	    return TCL_ERROR;
 	}
+    }
+
+    if (dtrace_handle_err(hd->handle, &errhandler, NULL) == -1) {
+	/* We have the handle opened by now, but since we throw an error
+	 * we also should not provide an usable handle.
+	 */
+	dtrace_close(hd->handle);
+	del_hd(interp, Tcl_NewIntObj(id));
+	Tcl_AppendResult(interp, COMMAND, 
+		" failed to establish error handler", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
+	return TCL_ERROR;
+    }
+
+    if (dtrace_handle_drop(hd->handle, &drophandler, NULL) == -1) {
+	/* We have the handle opened by now, but since we throw an error
+	 * we also should not provide an usable handle.
+	 */
+	dtrace_close(hd->handle);
+	del_hd(interp, Tcl_NewIntObj(id));
+	Tcl_AppendResult(interp, COMMAND, 
+		" failed to establish drop handler", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
+	return TCL_ERROR;
+    }
+
+    if (dtrace_handle_proc(hd->handle, &prochandler, NULL) == -1) {
+	/* We have the handle opened by now, but since we throw an error
+	 * we also should not provide an usable handle.
+	 */
+	dtrace_close(hd->handle);
+	del_hd(interp, Tcl_NewIntObj(id));
+	Tcl_AppendResult(interp, COMMAND, 
+		" failed to establish proc handler", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
+	return TCL_ERROR;
+    }
+
+    if (dtrace_handle_buffered(hd->handle, &bufhandler, NULL) == -1) {
+	/* We have the handle opened by now, but since we throw an error
+	 * we also should not provide an usable handle.
+	 */
+	dtrace_close(hd->handle);
+	del_hd(interp, Tcl_NewIntObj(id));
+	Tcl_AppendResult(interp, COMMAND, 
+		" failed to establish buffered handler", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
+	return TCL_ERROR;
     }
 
     Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
