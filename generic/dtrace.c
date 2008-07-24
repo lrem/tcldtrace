@@ -30,6 +30,21 @@
 #include <strings.h>
 #include "dtrace.h"
 
+/* Macros {{{ */
+
+/* Repeating code block found in the Open function.
+ * We have the handle opened by now, but since we throw an error
+ * we also should not provide an usable handle.
+ */
+#define OpenThrow(msg, code) \
+    dtrace_close(hd->handle);\
+    del_hd(interp, Tcl_NewIntObj(id));\
+    Tcl_AppendResult(interp, COMMAND, msg, NULL);\
+    Tcl_SetErrorCode(interp, ERROR_CLASS, code, NULL);\
+    return TCL_ERROR;
+
+/* }}} */
+
 /* get_option {{{
  *
  *	Gets the value of a given option.
@@ -510,77 +525,30 @@ static int Open (
     /* Reasonable defaults. */
     if (dtrace_setopt(hd->handle, "bufsize", "4m") != 0
 	    || dtrace_setopt(hd->handle, "aggsize", "4m") != 0) {
-	/* We have the handle opened by now, but since we throw an error
-	 * we also should not provide an usable handle.
-	 */
-	dtrace_close(hd->handle);
-	del_hd(interp, Tcl_NewIntObj(id));
-	Tcl_AppendResult(interp, COMMAND, " can't set default options ", NULL);
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
-	return TCL_ERROR;
+	OpenThrow(" can't set default options ", "OPTION");
     }
 
     for (i = 1; i < objc - 1; i+=2) {
 	if (set_option(hd, Tcl_GetString(objv[i]),
 		    Tcl_GetString(objv[i+1])) == 0) {
-	    /* We have the handle opened by now, but since we throw an error
-	     * we also should not provide an usable handle.
-	     */
-	    dtrace_close(hd->handle);
-	    del_hd(interp, Tcl_NewIntObj(id));
-	    Tcl_AppendResult(interp, COMMAND, " bad option initialization ",
-		    Tcl_GetString(objv[i]), NULL);
-	    Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
-	    return TCL_ERROR;
+	    OpenThrow(" bad option initialization ", "OPTION");
 	}
     }
 
     if (dtrace_handle_err(hd->handle, &errhandler, NULL) == -1) {
-	/* We have the handle opened by now, but since we throw an error
-	 * we also should not provide an usable handle.
-	 */
-	dtrace_close(hd->handle);
-	del_hd(interp, Tcl_NewIntObj(id));
-	Tcl_AppendResult(interp, COMMAND, 
-		" failed to establish error handler", NULL);
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
-	return TCL_ERROR;
+	OpenThrow(" failed to establish error handler", "LIB");
     }
 
     if (dtrace_handle_drop(hd->handle, &drophandler, NULL) == -1) {
-	/* We have the handle opened by now, but since we throw an error
-	 * we also should not provide an usable handle.
-	 */
-	dtrace_close(hd->handle);
-	del_hd(interp, Tcl_NewIntObj(id));
-	Tcl_AppendResult(interp, COMMAND, 
-		" failed to establish drop handler", NULL);
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
-	return TCL_ERROR;
+	OpenThrow(" failed to establish drop handler", "LIB");
     }
 
     if (dtrace_handle_proc(hd->handle, &prochandler, NULL) == -1) {
-	/* We have the handle opened by now, but since we throw an error
-	 * we also should not provide an usable handle.
-	 */
-	dtrace_close(hd->handle);
-	del_hd(interp, Tcl_NewIntObj(id));
-	Tcl_AppendResult(interp, COMMAND, 
-		" failed to establish proc handler", NULL);
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
-	return TCL_ERROR;
+	OpenThrow(" failed to establish proc handler", "LIB");
     }
 
     if (dtrace_handle_buffered(hd->handle, &bufhandler, NULL) == -1) {
-	/* We have the handle opened by now, but since we throw an error
-	 * we also should not provide an usable handle.
-	 */
-	dtrace_close(hd->handle);
-	del_hd(interp, Tcl_NewIntObj(id));
-	Tcl_AppendResult(interp, COMMAND, 
-		" failed to establish buffered handler", NULL);
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", NULL);
-	return TCL_ERROR;
+	OpenThrow(" failed to establish buffered handler", "LIB");
     }
 
     Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
