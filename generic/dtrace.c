@@ -377,7 +377,7 @@ static int chewrec (
  *	Intermediate callback between libdtrace and Tcl code.
  *
  * Results:
- *	DTRACE_CONSUME_THIS upon successful consumption.
+ *	DTRACE_HANDLE_OK upon successful consumption.
  *
  * Side effects:
  *	Appropriate Tcl callback is called.
@@ -387,7 +387,7 @@ static int bufhandler (
 	const dtrace_bufdata_t *bufdata,
 	void *arg)
 {
-    return DTRACE_CONSUME_THIS;
+    return DTRACE_HANDLE_OK;
 }
 /*}}}*/
 
@@ -396,7 +396,7 @@ static int bufhandler (
  *	Intermediate callback between libdtrace and Tcl code.
  *
  * Results:
- *	DTRACE_CONSUME_THIS upon successful consumption.
+ *	DTRACE_HANDLE_OK upon successful consumption.
  *
  * Side effects:
  *	Appropriate Tcl callback is called.
@@ -406,7 +406,7 @@ static int drophandler (
 	const dtrace_dropdata_t *dropdata,
 	void *arg)
 {
-    return DTRACE_CONSUME_THIS;
+    return DTRACE_HANDLE_OK;;
 }
 /*}}}*/
 
@@ -415,7 +415,7 @@ static int drophandler (
  *	Intermediate callback between libdtrace and Tcl code.
  *
  * Results:
- *	DTRACE_CONSUME_THIS upon successful consumption.
+ *	DTRACE_HANDLE_OK upon successful consumption.
  *
  * Side effects:
  *	Appropriate Tcl callback is called.
@@ -425,7 +425,7 @@ static int errhandler (
 	const dtrace_errdata_t *errdata,
 	void *arg)
 {
-    return DTRACE_CONSUME_THIS;
+    return DTRACE_HANDLE_OK;
 }
 /*}}}*/
 
