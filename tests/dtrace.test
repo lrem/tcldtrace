@@ -6,6 +6,9 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 }
 
 testConstraint tcl85 [package vsatisfies [package present Tcl] 8.5]
+testConstraint tracePrivs [expr {
+	!([catch {::dtrace::close [::dtrace::open]} msg] &&
+	[string match {*requires additional privileges} $msg])}]
 
 package require dtrace
 
@@ -152,7 +155,7 @@ test "go-1.3" "go with invalid handle" -body {
 } -returnCodes {1} -result {::dtrace::go bad handle}
 
 test "go-1.4" "go with invalid callback" -setup {
-	set h [::dtrace open 0]
+	set h [::dtrace::open 0]
 } -body {
 	::dtrace::go $h fooshmoo {cb_fooshmoo {arg0 arg1}}
 } -cleanup {
@@ -175,7 +178,8 @@ test "go-1.6" "go with non-instrumenting handle" -setup {
 	::dtrace::go $h
 } -cleanup {
 	::dtrace::close $h
-} -returnCodes {1} -result {::dtrace::go libdtrace error: Bad file number}
+} -returnCodes {1} -match regexp -result \
+{::dtrace::go libdtrace error: Bad file (number|descriptor)}
 
 # }}}
 
@@ -199,7 +203,8 @@ test "stop-1.4" "stop on non-instrumenting handle" -setup {
 	::dtrace::stop $h
 } -cleanup {
 	::dtrace::close $h
-} -returnCodes {1} -result {::dtrace::stop libdtrace error: Bad file number}
+} -returnCodes {1} -match regexp -result \
+{::dtrace::stop libdtrace error: Bad file (number|descriptor)}
 
 # }}}
 
@@ -255,7 +260,7 @@ test "simplescripts-2.3" "configuring" -body {
 # Tests requiring root {{{
 
 # ::dtrace::exec {{{
-test "exec-2.1" "exec for BEGIN" -setup {
+test "exec-2.1" "exec for BEGIN" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open]
 	set p [::dtrace::compile $h {:::BEGIN}]
 } -body {
@@ -265,7 +270,7 @@ test "exec-2.1" "exec for BEGIN" -setup {
 } -result {aggregates 0 recgens 1 matches 1 speculations 0}
 
 
-test "exec-2.2" "entries count" -setup {
+test "exec-2.2" "entries count" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open]
 	set p [::dtrace::compile $h {:::entry}]
 } -body {
@@ -279,16 +284,16 @@ test "exec-2.2" "entries count" -setup {
 
 # ::dtrace::go {{{
 
-test "go-2.1" "simply go" -setup {
-	set h [::dtrace open]
+test "go-2.1" "simply go" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
 } -body {
 	::dtrace::go $h
 } -cleanup {
 	::dtrace::close $h
 } 
 
-test "go-2.2" "go and register all callbacks" -setup {
-	set h [::dtrace open]
+test "go-2.2" "go and register all callbacks" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
 } -body {
 	::dtrace::go $h probe_desc {cb_probe_desc {arg0 arg1}} \
 	probe_output {cb_probe_output {arg0}} drop {cb_drop {}} \
@@ -301,16 +306,16 @@ test "go-2.2" "go and register all callbacks" -setup {
 
 # ::dtrace::stop {{{
 
-test "stop-2.1" "stop on non-running handle" -setup {
-	set h [::dtrace open]
+test "stop-2.1" "stop on non-running handle" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
 } -body {
 	::dtrace::stop $h
 } -cleanup {
 	::dtrace::close $h
 } -returnCodes {1} -result {::dtrace::stop libdtrace error: Invalid argument}
 
-test "stop-2.2" "simply stop" -setup {
-	set h [::dtrace open]
+test "stop-2.2" "simply stop" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
 	::dtrace::go $h
 } -body {
 	::dtrace::stop $h

@@ -92,7 +92,7 @@ int next_free_id = 1;
 TCL_DECLARE_MUTEX(pidMutex)
 int next_free_pid = 1;
 
-static enum callbacks {
+enum callbacks {
     cb_probe_desc, 
     cb_probe_output, 
     cb_drop, 
