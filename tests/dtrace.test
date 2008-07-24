@@ -179,6 +179,30 @@ test "go-1.6" "go with non-instrumenting handle" -setup {
 
 # }}}
 
+# ::dtrace::stop {{{
+
+test "stop-1.1" "too few arguments for stop" -body {
+	::dtrace::stop
+} -returnCodes {1} -result {wrong # args: should be "::dtrace::stop handle"}
+
+test "stop-1.2" "too much arguments for stop" -body {
+	::dtrace::stop a b c
+} -returnCodes {1} -result {wrong # args: should be "::dtrace::stop handle"}
+
+test "stop-1.3" "stop on invalid handle" -body {
+	::dtrace::stop -1
+} -returnCodes {1} -result {::dtrace::stop bad handle}
+
+test "stop-1.4" "stop on non-instrumenting handle" -setup {
+	set h [::dtrace::open 0]
+} -body {
+	::dtrace::stop $h
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {::dtrace::stop libdtrace error: Bad file number}
+
+# }}}
+
 # Ensemble test {{{
 test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close
@@ -275,6 +299,26 @@ test "go-2.2" "go and register all callbacks" -setup {
 
 # }}}
 
+# ::dtrace::stop {{{
+
+test "stop-2.1" "stop on non-running handle" -setup {
+	set h [::dtrace open]
+} -body {
+	::dtrace::stop $h
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {::dtrace::stop libdtrace error: Invalid argument}
+
+test "stop-2.2" "simply stop" -setup {
+	set h [::dtrace open]
+	::dtrace::go $h
+} -body {
+	::dtrace::stop $h
+} -cleanup {
+	::dtrace::close $h
+}
+
+# }}}
 
 # }}}
 
