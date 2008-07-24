@@ -406,7 +406,7 @@ static int drophandler (
 	const dtrace_dropdata_t *dropdata,
 	void *arg)
 {
-    return DTRACE_HANDLE_OK;;
+    return DTRACE_HANDLE_OK;
 }
 /*}}}*/
 
@@ -504,6 +504,19 @@ static int Open (
 		dtrace_errmsg(NULL, error), NULL);
 	snprintf(errnum, 16, "%d", error);
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+	return TCL_ERROR;
+    }
+
+    /* Reasonable defaults. */
+    if (dtrace_setopt(hd->handle, "bufsize", "4m") != 0
+	    || dtrace_setopt(hd->handle, "aggsize", "4m") != 0) {
+	/* We have the handle opened by now, but since we throw an error
+	 * we also should not provide an usable handle.
+	 */
+	dtrace_close(hd->handle);
+	del_hd(interp, Tcl_NewIntObj(id));
+	Tcl_AppendResult(interp, COMMAND, " can't set default options ", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "OPTION", NULL);
 	return TCL_ERROR;
     }
 
