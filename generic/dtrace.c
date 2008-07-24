@@ -36,10 +36,10 @@
  * We have the handle opened by now, but since we throw an error
  * we also should not provide an usable handle.
  */
-#define OpenThrow(msg, code) \
+#define OpenThrow(code, msg0, msg1) \
     dtrace_close(hd->handle);\
     del_hd(interp, Tcl_NewIntObj(id));\
-    Tcl_AppendResult(interp, COMMAND, msg, NULL);\
+    Tcl_AppendResult(interp, COMMAND, msg0, msg1, NULL);\
     Tcl_SetErrorCode(interp, ERROR_CLASS, code, NULL);\
     return TCL_ERROR;
 
@@ -525,30 +525,31 @@ static int Open (
     /* Reasonable defaults. */
     if (dtrace_setopt(hd->handle, "bufsize", "4m") != 0
 	    || dtrace_setopt(hd->handle, "aggsize", "4m") != 0) {
-	OpenThrow(" can't set default options ", "OPTION");
+	OpenThrow("OPTION", " can't set default options ", NULL);
     }
 
     for (i = 1; i < objc - 1; i+=2) {
 	if (set_option(hd, Tcl_GetString(objv[i]),
 		    Tcl_GetString(objv[i+1])) == 0) {
-	    OpenThrow(" bad option initialization ", "OPTION");
+	    OpenThrow("OPTION", " bad option initialization ", 
+		    Tcl_GetString(objv[i]));
 	}
     }
 
     if (dtrace_handle_err(hd->handle, &errhandler, NULL) == -1) {
-	OpenThrow(" failed to establish error handler", "LIB");
+	OpenThrow("LIB", " failed to establish error handler", NULL);
     }
 
     if (dtrace_handle_drop(hd->handle, &drophandler, NULL) == -1) {
-	OpenThrow(" failed to establish drop handler", "LIB");
+	OpenThrow("LIB", " failed to establish drop handler", NULL);
     }
 
     if (dtrace_handle_proc(hd->handle, &prochandler, NULL) == -1) {
-	OpenThrow(" failed to establish proc handler", "LIB");
+	OpenThrow("LIB", " failed to establish proc handler", NULL);
     }
 
     if (dtrace_handle_buffered(hd->handle, &bufhandler, NULL) == -1) {
-	OpenThrow(" failed to establish buffered handler", "LIB");
+	OpenThrow("LIB", " failed to establish buffered handler", NULL);
     }
 
     Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
