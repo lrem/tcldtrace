@@ -96,6 +96,15 @@ test "exec-1.4" "exec with invalid program" -body {
 	::dtrace::exec -1
 } -returnCodes {1} -result {::dtrace::exec bad program handle}
 
+test "exec-1.5" "exec with non-instrumenting handle" -setup {
+	set h [::dtrace::open 0]
+	set p [::dtrace::compile $h {:::entry}]
+} -body {
+	::dtrace::exec $p
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {::dtrace::exec failed enable the probe}
+
 # }}}
 
 # ::dtrace::info {{{
