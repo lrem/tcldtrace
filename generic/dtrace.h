@@ -57,6 +57,7 @@ typedef struct dtrace_data {
 typedef struct handle_data {
     dtrace_hdl_t *handle;
     options_t options;
+    Tcl_Interp *interp;
 
     /* Callbacks and args for them */
     Tcl_Obj *probe_desc;

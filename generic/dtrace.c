@@ -363,6 +363,33 @@ static int chew (
 	const dtrace_probedata_t *data,
 	void *arg)
 {
+    handle_data *hd = (handle_data*) arg;
+    dtrace_probedesc_t *pdesc = data->dtpda_pdesc;
+    processorid_t cpu = data->dtpda_cpu;
+    Tcl_Obj *objv[5];
+
+    objv[0] = hd->probe_desc;
+
+    if (hd->options.foldpdesc) {
+	char name[128];
+	
+	snprintf(name, sizeof(name), "%s:%s:%s:%s", pdesc->dtpd_provider,
+		pdesc->dtpd_mod, pdesc->dtpd_func, pdesc->dtpd_name);
+	objv[1] = Tcl_NewStringObj(name, -1);
+    }
+    else {
+    }
+
+    objv[2] = Tcl_NewIntObj(cpu);
+
+    objv[3] = Tcl_NewIntObj(pdesc->dtpd_id);
+
+    objv[4] = hd->probe_desc_args;
+
+    if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
+	/* What now?! */
+    }
+
     return DTRACE_CONSUME_THIS;
 }
 /*}}}*/
@@ -551,6 +578,8 @@ static int Open (
     if (dtrace_handle_buffered(hd->handle, &bufhandler, NULL) == -1) {
 	OpenThrow("LIB", " failed to establish buffered handler", NULL);
     }
+
+    hd->interp = interp;
 
     Tcl_SetObjResult(interp, Tcl_NewIntObj(id));
 
@@ -1069,7 +1098,7 @@ static int Process (
 	dtrace_sleep(hd->handle);
     }
 
-    if (dtrace_work(hd->handle, NULL, chew, chewrec, NULL) == -1) {
+    if (dtrace_work(hd->handle, NULL, chew, chewrec, &hd) == -1) {
 	char errnum[16];
 
 	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
