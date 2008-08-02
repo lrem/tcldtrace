@@ -344,6 +344,23 @@ test "process-2.1" "fire the BEGIN probe" -constraints {tracePrivs} -setup {
 } -result {dtrace:::BEGIN}
 
 
+test "process-2.1" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open -foldpdesc 0]
+	set p [::dtrace::compile $h {:::BEGIN}]	
+	::dtrace::exec $p
+	proc cb_probe_desc {probe cpu id args} {
+		global result
+		set result $probe
+	}
+	::dtrace::go $h probe_desc {cb_probe_desc {}}
+} -body {
+	::dtrace::process $h 1
+	return $result
+} -cleanup {
+	::dtrace::close $h
+} -result {dtrace {} {} BEGIN}
+
+
 # }}}
 
 # }}}
