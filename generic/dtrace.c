@@ -246,6 +246,7 @@ static handle_data *new_hd (
     Tcl_MutexUnlock(idMutex);
 
     hd = (handle_data*) ckalloc(sizeof(handle_data));
+    memset(hd, 0, sizeof(handle_data));
 
     hentry = Tcl_CreateHashEntry(htable, (char*) *id, &isNew);
     if (!isNew) {
@@ -378,6 +379,12 @@ static int chew (
 	objv[1] = Tcl_NewStringObj(name, -1);
     }
     else {
+	Tcl_Obj *desc[4];
+	desc[0] = Tcl_NewStringObj(pdesc->dtpd_provider, -1);
+	desc[1] = Tcl_NewStringObj(pdesc->dtpd_mod, -1);
+	desc[2] = Tcl_NewStringObj(pdesc->dtpd_func, -1);
+	desc[3] = Tcl_NewStringObj(pdesc->dtpd_name, -1);
+	objv[1] = Tcl_NewListObj(4, desc);
     }
 
     objv[2] = Tcl_NewIntObj(cpu);
@@ -623,6 +630,26 @@ static int Close (
 
     dtrace_close(hd->handle);
     hd->handle = NULL;
+    if (hd->probe_desc) {
+	Tcl_DecrRefCount(hd->probe_desc);
+	Tcl_DecrRefCount(hd->probe_desc_args);
+    }
+    if (hd->probe_output) {
+	Tcl_DecrRefCount(hd->probe_output);
+	Tcl_DecrRefCount(hd->probe_output_args);
+    }
+    if (hd->drop) {
+	Tcl_DecrRefCount(hd->drop);
+	Tcl_DecrRefCount(hd->drop_args);
+    }
+    if (hd->error) {
+	Tcl_DecrRefCount(hd->error);
+	Tcl_DecrRefCount(hd->error_args);
+    }
+    if (hd->proc) {
+	Tcl_DecrRefCount(hd->proc);
+	Tcl_DecrRefCount(hd->proc_args);
+    }
     del_hd(interp, objv[1]);
 
     return TCL_OK;
@@ -967,7 +994,7 @@ static int Go (
 	switch (callback) {
 	    case cb_probe_desc:
 		hd->probe_desc = lobjv[0];
-		hd->probe_output_args = lobjv[1];
+		hd->probe_desc_args= lobjv[1];
 		break;
 	    case cb_probe_output:
 		hd->probe_output = lobjv[0];
@@ -987,6 +1014,9 @@ static int Go (
 	    default:
 		Tcl_Panic(EXTENSION_NAME " bad callback id");
 	}
+
+	Tcl_IncrRefCount(lobjv[0]);
+	Tcl_IncrRefCount(lobjv[1]);
     }
 
     if (dtrace_go(hd->handle) == -1) {
@@ -1098,7 +1128,7 @@ static int Process (
 	dtrace_sleep(hd->handle);
     }
 
-    if (dtrace_work(hd->handle, NULL, chew, chewrec, &hd) == -1) {
+    if (dtrace_work(hd->handle, NULL, chew, chewrec, hd) == -1) {
 	char errnum[16];
 
 	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
