@@ -421,6 +421,39 @@ static int chewrec (
 }
 /*}}}*/
 
+/* bufType {{{
+ *
+ *	Gets a human readable string from action type number.
+ *
+ * Results:
+ *	A Tcl string object containing the action type, or "UNKNOWN".
+ *
+ * Side effects:
+ *	None.
+ */
+
+static Tcl_Obj *bufType (
+	const dtrace_actkind_t number)
+{
+    switch (number) {
+	case DTRACEACT_DIFEXPR: 
+	    return Tcl_NewStringObj("DIFEXPR", -1);
+	case DTRACEACT_PRINTF: 
+	    return Tcl_NewStringObj("PRINTF", -1);
+	case DTRACEACT_PRINTA: 
+	    return Tcl_NewStringObj("PRINTA", -1);
+	case DTRACEACT_USTACK: 
+	    return Tcl_NewStringObj("USTACK", -1);
+	case DTRACEACT_JSTACK: 
+	    return Tcl_NewStringObj("JSTACK", -1);
+	case DTRACEACT_STACK: 
+	    return Tcl_NewStringObj("STACK", -1);
+	default:
+	    return Tcl_NewStringObj("UNKNOWN", -1);
+    }
+}
+/*}}}*/
+
 /* bufhandler {{{
  *
  *	Intermediate callback between libdtrace and Tcl code.
@@ -436,6 +469,44 @@ static int bufhandler (
 	const dtrace_bufdata_t *bufdata,
 	void *arg)
 {
+    handle_data *hd = (handle_data*) arg;
+    dtrace_probedata_t *data = bufdata->dtbda_probe;
+    dtrace_probedesc_t *pdesc = data->dtpda_pdesc;
+    processorid_t cpu = data->dtpda_cpu;
+    Tcl_Obj *objv[7];
+
+    objv[0] = hd->callbacks[cb_probe_output];
+
+    if (hd->options.foldpdesc) {
+	char name[128];
+	
+	snprintf(name, sizeof(name), "%s:%s:%s:%s", pdesc->dtpd_provider,
+		pdesc->dtpd_mod, pdesc->dtpd_func, pdesc->dtpd_name);
+	objv[1] = Tcl_NewStringObj(name, -1);
+    }
+    else {
+	Tcl_Obj *desc[4];
+	desc[0] = Tcl_NewStringObj(pdesc->dtpd_provider, -1);
+	desc[1] = Tcl_NewStringObj(pdesc->dtpd_mod, -1);
+	desc[2] = Tcl_NewStringObj(pdesc->dtpd_func, -1);
+	desc[3] = Tcl_NewStringObj(pdesc->dtpd_name, -1);
+	objv[1] = Tcl_NewListObj(4, desc);
+    }
+
+    objv[2] = Tcl_NewIntObj(cpu);
+
+    objv[3] = Tcl_NewIntObj(pdesc->dtpd_id);
+
+    objv[4] = hd->args[cb_probe_desc];
+
+    objv[5] = bufType(bufdata->dtbda_recdesc->dtrd_action);
+
+    objv[6] = Tcl_NewStringObj(bufdata->dtbda_buffered, -1);
+
+    if (Tcl_EvalObjv(hd->interp, 7, objv, 0) != TCL_OK) {
+	/* What now?! */
+    }
+
     return DTRACE_HANDLE_OK;
 }
 /*}}}*/
