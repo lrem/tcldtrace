@@ -43,6 +43,7 @@
 #include <libproc.h>
 #include <tcl.h>
 
+#define CALLBACKS_COUNT         5
 
 #define internal_option(a) (strcmp(a, "-foldpdesc") == 0)
 typedef struct options_s {
@@ -60,16 +61,8 @@ typedef struct handle_data {
     Tcl_Interp *interp;
 
     /* Callbacks and args for them */
-    Tcl_Obj *probe_desc;
-    Tcl_Obj *probe_desc_args;
-    Tcl_Obj *probe_output;
-    Tcl_Obj *probe_output_args;
-    Tcl_Obj *drop;
-    Tcl_Obj *drop_args;
-    Tcl_Obj *error;
-    Tcl_Obj *error_args;
-    Tcl_Obj *proc;
-    Tcl_Obj *proc_args;
+    Tcl_Obj *callbacks[CALLBACKS_COUNT];
+    Tcl_Obj *args[CALLBACKS_COUNT];
 } handle_data;
 
 typedef struct program_data {

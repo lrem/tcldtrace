@@ -369,7 +369,7 @@ static int chew (
     processorid_t cpu = data->dtpda_cpu;
     Tcl_Obj *objv[5];
 
-    objv[0] = hd->probe_desc;
+    objv[0] = hd->callbacks[cb_probe_desc];
 
     if (hd->options.foldpdesc) {
 	char name[128];
@@ -391,7 +391,7 @@ static int chew (
 
     objv[3] = Tcl_NewIntObj(pdesc->dtpd_id);
 
-    objv[4] = hd->probe_desc_args;
+    objv[4] = hd->args[cb_probe_desc];
 
     if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
 	/* What now?! */
@@ -613,6 +613,7 @@ static int Close (
 	Tcl_Obj *const objv[])
 {
     handle_data *hd;
+    int i;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "handle");
@@ -630,25 +631,11 @@ static int Close (
 
     dtrace_close(hd->handle);
     hd->handle = NULL;
-    if (hd->probe_desc) {
-	Tcl_DecrRefCount(hd->probe_desc);
-	Tcl_DecrRefCount(hd->probe_desc_args);
-    }
-    if (hd->probe_output) {
-	Tcl_DecrRefCount(hd->probe_output);
-	Tcl_DecrRefCount(hd->probe_output_args);
-    }
-    if (hd->drop) {
-	Tcl_DecrRefCount(hd->drop);
-	Tcl_DecrRefCount(hd->drop_args);
-    }
-    if (hd->error) {
-	Tcl_DecrRefCount(hd->error);
-	Tcl_DecrRefCount(hd->error_args);
-    }
-    if (hd->proc) {
-	Tcl_DecrRefCount(hd->proc);
-	Tcl_DecrRefCount(hd->proc_args);
+    for (i = 0; i < CALLBACKS_COUNT; i++) {
+	if(hd->callbacks[i]) {
+	    Tcl_DecrRefCount(hd->callbacks[i]);
+	    Tcl_DecrRefCount(hd->args[i]);
+	}
     }
     del_hd(interp, objv[1]);
 
@@ -991,28 +978,12 @@ static int Go (
 	    return TCL_ERROR;
 	}
 
-	switch (callback) {
-	    case cb_probe_desc:
-		hd->probe_desc = lobjv[0];
-		hd->probe_desc_args= lobjv[1];
-		break;
-	    case cb_probe_output:
-		hd->probe_output = lobjv[0];
-		hd->probe_output_args = lobjv[1];
-		break;
-	    case cb_drop:
-		hd->drop = lobjv[0];
-		hd->drop_args = lobjv[1];
-		break;
-	    case cb_error:
-		hd->error = lobjv[0];
-		hd->error_args = lobjv[1];
-	    case cb_proc:
-		hd->proc = lobjv[0];
-		hd->proc_args = lobjv[1];
-		break;
-	    default:
-		Tcl_Panic(EXTENSION_NAME " bad callback id");
+	if(0 <= callback && callback < CALLBACKS_COUNT) {
+	    hd->callbacks[callback] = lobjv[0];
+	    hd->args[callback] = lobjv[1];
+	}
+	else {
+	    Tcl_Panic(EXTENSION_NAME " bad callback id");
 	}
 
 	Tcl_IncrRefCount(lobjv[0]);
