@@ -677,6 +677,28 @@ static void prochandler (
 }
 /*}}}*/
 
+/* listhandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	0 upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int listhandler (
+	dtrace_hdl_t *handle,
+	dtrace_prog_t *program,
+	dtrace_stmtdesc_t *statement,
+	dtrace_ecbdesc_t **last
+	)
+{
+    return 0;
+}
+/*}}}*/
+
 /* }}} */
 
 /* Command implementations {{{ */
@@ -1298,6 +1320,55 @@ static int Process (
 }
 /*}}}*/
 
+/* List {{{
+ *
+ *     Implements the ::dtrace::list command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	Callbacks are called for probes matched by given program.
+ */
+
+static int List (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    dtrace_ecbdesc_t *last = NULL;
+    handle_data *hd;
+    program_data *pd;
+
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program list_callback");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    pd = get_pd(interp, objv[1]);
+    if (pd == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad program handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = pd->hd;
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+
+    dtrace_stmt_iter(hd->handle, pd->compiled,
+	    (dtrace_stmt_f *)listhandler, &last);
+
+    return TCL_OK;
+}
+/*}}}*/
+
 /* }}} */
 
 /* Module (de)initialization {{{ */
@@ -1383,6 +1454,7 @@ void onDestroy (
  *		::dtrace::go
  *		::dtrace::stop
  *		::dtrace::process
+ *		::dtrace::list
  */
 
 int Dtrace_Init (
@@ -1426,6 +1498,7 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::go", Go, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::stop", Stop, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::process", Process, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::list", List, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
