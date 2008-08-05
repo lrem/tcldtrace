@@ -677,7 +677,7 @@ static void prochandler (
 }
 /*}}}*/
 
-/* listhandler {{{
+/* listProbe {{{
  *
  *	Intermediate callback between libdtrace and Tcl code.
  *
@@ -688,13 +688,59 @@ static void prochandler (
  *	Appropriate Tcl callback is called.
  */
 
-static int listhandler (
+static int listProbe (
+	dtrace_hdl_t *handle,
+	const dtrace_probedesc_t *pdesc,
+	void *varg
+	)
+{
+    list_arg *arg = (list_arg*) varg;
+    Tcl_Obj *objv[3];
+
+    objv[0] = arg->proc;
+
+    objv[1] = formatProbeDesc(arg->hd, pdesc);
+
+    objv[2] = arg->args;
+
+    if (Tcl_EvalObjv(arg->hd->interp, 3, objv, 0) != TCL_OK) {
+	/* What now?! */
+    }
+
+    return 0;
+}
+/*}}}*/
+
+/* listStatement {{{
+ *
+ *	Intermediate callback before listProbe.
+ *
+ * Results:
+ *	0 upon successful consumption.
+ *
+ * Side effects:
+ *	The listProbe callback is called, probably multiple times.
+ */
+
+static int listStatement (
 	dtrace_hdl_t *handle,
 	dtrace_prog_t *program,
 	dtrace_stmtdesc_t *statement,
-	dtrace_ecbdesc_t **last
+	void *arg
 	)
 {
+    dtrace_ecbdesc_t *enabled = statement->dtsd_ecbdesc;
+
+    if (dtrace_probe_iter(handle, &enabled->dted_probe, listProbe, arg) != 0) {
+	/* AFAIR this should be caught at compile time... */
+	Tcl_Panic(EXTENSION_NAME "unmatched statement %s:%s:%s:%s: %s\n",
+		enabled->dted_probe.dtpd_provider,
+		enabled->dted_probe.dtpd_mod,
+		enabled->dted_probe.dtpd_func,
+		enabled->dted_probe.dtpd_name,
+		dtrace_errmsg(handle, dtrace_errno(handle)));
+    }
+
     return 0;
 }
 /*}}}*/
@@ -1337,12 +1383,13 @@ static int List (
 	int objc,
 	Tcl_Obj *const objv[])
 {
-    dtrace_ecbdesc_t *last = NULL;
     handle_data *hd;
     program_data *pd;
+    list_arg arg;
 
-    if (objc != 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program list_callback");
+    if (objc != 4) {
+	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program"
+		" list_callback args");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
     }
@@ -1361,8 +1408,12 @@ static int List (
 	return TCL_ERROR;
     }
 
+    arg.hd = hd;
+    arg.proc = objv[2];
+    arg.args = objv[3];
+
     dtrace_stmt_iter(hd->handle, pd->compiled,
-	    (dtrace_stmt_f *)listhandler, &last);
+	    (dtrace_stmt_f *)listStatement, &arg);
 
     return TCL_OK;
 }

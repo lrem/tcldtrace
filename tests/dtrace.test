@@ -242,16 +242,16 @@ test "list-1.1" "too few arguments for list" -body {
 	::dtrace::list
 } -returnCodes {1} \
 -result {wrong # args: should be\
-"::dtrace::list compiled_program list_callback"}
+"::dtrace::list compiled_program list_callback args"}
 
 test "list-1.2" "too much much for list" -body {
-	::dtrace::list a b c
+	::dtrace::list a b c d e f g
 } -returnCodes {1} \
 -result {wrong # args: should be\
-"::dtrace::list compiled_program list_callback"}
+"::dtrace::list compiled_program list_callback args"}
 
 test "list-1.3" "list with invalid program" -body {
-	::dtrace::list -1 fooshmoo
+	::dtrace::list -1 fooshmoo barbaz
 } -returnCodes {1} -result {::dtrace::list bad program handle}
 
 # }}}

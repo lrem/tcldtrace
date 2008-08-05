@@ -70,6 +70,15 @@ typedef struct program_data {
     handle_data *hd;
 } program_data;
 
+/* This is a complex argument used only for ::dtrace::list intermediate
+ * callbacks.
+ */
+typedef struct list_arg {
+    handle_data *hd;
+    Tcl_Obj *proc;
+    Tcl_Obj *args;
+} list_arg;
+
 const char *basic_options[] = {
     "-flowindent",
     "-quiet",
