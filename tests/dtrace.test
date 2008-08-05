@@ -208,6 +208,34 @@ test "stop-1.4" "stop on non-instrumenting handle" -setup {
 
 # }}}
 
+# ::dtrace::process {{{
+
+test "process-1.1" "too few arguments for process" -body {
+	::dtrace::process
+} -returnCodes {1} -result \
+{wrong # args: should be "::dtrace::process handle ?sleep?"}
+
+test "process-1.2" "too much arguments for process" -body {
+	::dtrace::process a b c d
+} -returnCodes {1} -result \
+{wrong # args: should be "::dtrace::process handle ?sleep?"}
+
+
+test "process-1.3" "process with invalid handle" -body {
+	::dtrace::process -1
+} -returnCodes {1} -result {::dtrace::process bad handle}
+
+test "process-1.4" "process with invalid sleep" -setup {
+	set h [::dtrace::open 0]
+} -body {
+	::dtrace::process $h fooshmoo
+} -cleanup {
+	::dtrace::close $h
+} -returnCodes {1} -result {expected boolean value but got "fooshmoo"
+::dtrace::process bad usage}
+
+# }}}
+
 # Ensemble test {{{
 test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close
