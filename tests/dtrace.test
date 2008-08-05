@@ -451,6 +451,52 @@ test "process-3.2" "probe_output unfolded" -constraints {tracePrivs} -setup {
 
 # }}}
 
+# ::dtrace::list {{{
+
+test "list-2.1" "BEGIN probe folded" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open -foldpdesc 1 1]
+	set p [::dtrace::compile $h {:::BEGIN}]
+	proc callback {probe args} {
+		global result
+		set result $probe
+	}
+} -body {
+	::dtrace::list $p callback {}
+	return $result
+} -cleanup {
+	::dtrace::close $h
+} -result {dtrace:::BEGIN}
+
+test "list-2.2" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open -foldpdesc 0 1]
+	set p [::dtrace::compile $h {:::BEGIN}]
+	proc callback {probe args} {
+		global result
+		set result $probe
+	}
+} -body {
+	::dtrace::list $p callback {}
+	return $result
+} -cleanup {
+	::dtrace::close $h
+} -result {dtrace {} {} BEGIN}
+
+test "list-2.3" "count syscall::exec:*" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open -foldpdesc 0 1]
+	set p [::dtrace::compile $h {syscall::exec:}]
+	proc callback {probe args} {
+		global result
+		incr result
+	}
+} -body {
+	::dtrace::list $p callback {}
+	return $result
+} -cleanup {
+	::dtrace::close $h
+} -result {2}
+
+# }}}
+
 # }}}
 
 cleanupTests

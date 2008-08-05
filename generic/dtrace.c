@@ -726,14 +726,20 @@ static int listStatement (
 	dtrace_hdl_t *handle,
 	dtrace_prog_t *program,
 	dtrace_stmtdesc_t *statement,
-	void *arg
+	void *varg
 	)
 {
+    list_arg *arg = (list_arg*) varg;
     dtrace_ecbdesc_t *enabled = statement->dtsd_ecbdesc;
+
+    if (enabled == arg->last) {
+	return 0;
+    }
+    arg->last = enabled;
 
     if (dtrace_probe_iter(handle, &enabled->dted_probe, listProbe, arg) != 0) {
 	/* AFAIR this should be caught at compile time... */
-	Tcl_Panic(EXTENSION_NAME "unmatched statement %s:%s:%s:%s: %s\n",
+	Tcl_Panic(EXTENSION_NAME " unmatched statement %s:%s:%s:%s: %s\n",
 		enabled->dted_probe.dtpd_provider,
 		enabled->dted_probe.dtpd_mod,
 		enabled->dted_probe.dtpd_func,
@@ -1408,6 +1414,7 @@ static int List (
 	return TCL_ERROR;
     }
 
+    arg.last = NULL;
     arg.hd = hd;
     arg.proc = objv[2];
     arg.args = objv[3];

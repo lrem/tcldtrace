@@ -74,6 +74,7 @@ typedef struct program_data {
  * callbacks.
  */
 typedef struct list_arg {
+    dtrace_ecbdesc_t *last;
     handle_data *hd;
     Tcl_Obj *proc;
     Tcl_Obj *args;
