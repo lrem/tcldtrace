@@ -369,6 +369,10 @@ static int chew (
     processorid_t cpu = data->dtpda_cpu;
     Tcl_Obj *objv[5];
 
+    if (hd->callbacks[cb_probe_desc] == NULL) {
+	return DTRACE_CONSUME_THIS;
+    }
+
     objv[0] = hd->callbacks[cb_probe_desc];
 
     if (hd->options.foldpdesc) {
@@ -475,6 +479,10 @@ static int bufhandler (
     processorid_t cpu = data->dtpda_cpu;
     Tcl_Obj *objv[7];
 
+    if(hd->callbacks[cb_probe_output] == NULL) {
+	return DTRACE_HANDLE_OK;
+    }
+
     objv[0] = hd->callbacks[cb_probe_output];
 
     if (hd->options.foldpdesc) {
@@ -497,7 +505,7 @@ static int bufhandler (
 
     objv[3] = Tcl_NewIntObj(pdesc->dtpd_id);
 
-    objv[4] = hd->args[cb_probe_desc];
+    objv[4] = hd->args[cb_probe_output];
 
     objv[5] = bufType(bufdata->dtbda_recdesc->dtrd_action);
 
@@ -641,19 +649,19 @@ static int Open (
 	}
     }
 
-    if (dtrace_handle_err(hd->handle, &errhandler, NULL) == -1) {
+    if (dtrace_handle_err(hd->handle, &errhandler, hd) == -1) {
 	OpenThrow("LIB", " failed to establish error handler", NULL);
     }
 
-    if (dtrace_handle_drop(hd->handle, &drophandler, NULL) == -1) {
+    if (dtrace_handle_drop(hd->handle, &drophandler, hd) == -1) {
 	OpenThrow("LIB", " failed to establish drop handler", NULL);
     }
 
-    if (dtrace_handle_proc(hd->handle, &prochandler, NULL) == -1) {
+    if (dtrace_handle_proc(hd->handle, &prochandler, hd) == -1) {
 	OpenThrow("LIB", " failed to establish proc handler", NULL);
     }
 
-    if (dtrace_handle_buffered(hd->handle, &bufhandler, NULL) == -1) {
+    if (dtrace_handle_buffered(hd->handle, &bufhandler, hd) == -1) {
 	OpenThrow("LIB", " failed to establish buffered handler", NULL);
     }
 
