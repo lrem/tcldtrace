@@ -618,6 +618,43 @@ static int errhandler (
 	const dtrace_errdata_t *errdata,
 	void *arg)
 {
+    handle_data *hd = (handle_data*) arg;
+    dtrace_probedesc_t *pdesc = errdata->dteda_pdesc;
+    processorid_t cpu = errdata->dteda_cpu;
+    Tcl_Obj *objv[5];
+
+    if(hd->callbacks[cb_error] == NULL) {
+	return DTRACE_HANDLE_OK;
+    }
+
+    objv[0] = hd->callbacks[cb_error];
+
+    if (hd->options.foldpdesc) {
+	char name[128];
+	
+	snprintf(name, sizeof(name), "%s:%s:%s:%s", pdesc->dtpd_provider,
+		pdesc->dtpd_mod, pdesc->dtpd_func, pdesc->dtpd_name);
+	objv[1] = Tcl_NewStringObj(name, -1);
+    }
+    else {
+	Tcl_Obj *desc[4];
+	desc[0] = Tcl_NewStringObj(pdesc->dtpd_provider, -1);
+	desc[1] = Tcl_NewStringObj(pdesc->dtpd_mod, -1);
+	desc[2] = Tcl_NewStringObj(pdesc->dtpd_func, -1);
+	desc[3] = Tcl_NewStringObj(pdesc->dtpd_name, -1);
+	objv[1] = Tcl_NewListObj(4, desc);
+    }
+
+    objv[2] = Tcl_NewIntObj(cpu);
+
+    objv[3] = Tcl_NewStringObj(errdata->dteda_msg, -1);
+
+    objv[4] = hd->args[cb_error];
+
+    if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
+	/* What now?! */
+    }
+
     return DTRACE_HANDLE_OK;
 }
 /*}}}*/
