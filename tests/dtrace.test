@@ -236,6 +236,26 @@ test "process-1.4" "process with invalid sleep" -setup {
 
 # }}}
 
+# ::dtrace::list {{{
+
+test "list-1.1" "too few arguments for list" -body {
+	::dtrace::list
+} -returnCodes {1} \
+-result {wrong # args: should be\
+"::dtrace::list compiled_program list_callback"}
+
+test "list-1.2" "too much much for list" -body {
+	::dtrace::list a b c
+} -returnCodes {1} \
+-result {wrong # args: should be\
+"::dtrace::list compiled_program list_callback"}
+
+test "list-1.3" "list with invalid program" -body {
+	::dtrace::list -1 fooshmoo
+} -returnCodes {1} -result {::dtrace::list bad program handle}
+
+# }}}
+
 # Ensemble test {{{
 test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close

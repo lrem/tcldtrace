@@ -1361,7 +1361,6 @@ static int List (
 	return TCL_ERROR;
     }
 
-
     dtrace_stmt_iter(hd->handle, pd->compiled,
 	    (dtrace_stmt_f *)listhandler, &last);
 
