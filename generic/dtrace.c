@@ -519,6 +519,47 @@ static int bufhandler (
 }
 /*}}}*/
 
+/* dropKind {{{
+ *
+ *	Gets a human readable string from drop type number.
+ *
+ * Results:
+ *	A Tcl string object containing the drop type, or "UNKNOWN".
+ *
+ * Side effects:
+ *	None.
+ */
+
+static Tcl_Obj *dropKind (
+	const dtrace_dropkind_t number)
+{
+    switch (number) {
+	case DTRACEDROP_PRINCIPAL: 
+	    return Tcl_NewStringObj("PRINCIPAL", -1);
+	case DTRACEDROP_AGGREGATION: 
+	    return Tcl_NewStringObj("AGGREGATION", -1);
+	case DTRACEDROP_DYNAMIC: 
+	    return Tcl_NewStringObj("DYNAMIC", -1);
+	case DTRACEDROP_DYNRINSE: 
+	    return Tcl_NewStringObj("DYNRINSE", -1);
+	case DTRACEDROP_DYNDIRTY: 
+	    return Tcl_NewStringObj("DYNDIRTY", -1);
+	case DTRACEDROP_SPEC: 
+	    return Tcl_NewStringObj("SPEC", -1);
+	case DTRACEDROP_SPECBUSY: 
+	    return Tcl_NewStringObj("SPECBUSY", -1);
+	case DTRACEDROP_SPECUNAVAIL: 
+	    return Tcl_NewStringObj("SPECUNAVAIL", -1);
+	case DTRACEDROP_STKSTROVERFLOW: 
+	    return Tcl_NewStringObj("STKSTROVERFLOW", -1);
+	case DTRACEDROP_DBLERROR:
+	    return Tcl_NewStringObj("DBLERROR", -1);
+	default:
+	    return Tcl_NewStringObj("UNKNOWN", -1);
+    }
+}
+/*}}}*/
+
 /* drophandler {{{
  *
  *	Intermediate callback between libdtrace and Tcl code.
@@ -534,6 +575,30 @@ static int drophandler (
 	const dtrace_dropdata_t *dropdata,
 	void *arg)
 {
+    handle_data *hd = (handle_data*) arg;
+    processorid_t cpu = dropdata->dtdda_cpu;
+    Tcl_Obj *objv[6];
+
+    if(hd->callbacks[cb_drop] == NULL) {
+	return DTRACE_HANDLE_OK;
+    }
+
+    objv[0] = hd->callbacks[cb_drop];
+
+    objv[1] = Tcl_NewIntObj(cpu);
+
+    objv[2] = dropKind(dropdata->dtdda_kind);
+
+    objv[3] = Tcl_NewIntObj(dropdata->dtdda_drops);
+    
+    objv[4] = Tcl_NewStringObj(dropdata->dtdda_msg, -1);
+
+    objv[5] = hd->args[cb_drop];
+
+    if (Tcl_EvalObjv(hd->interp, 6, objv, 0) != TCL_OK) {
+	/* What now?! */
+    }
+
     return DTRACE_HANDLE_OK;
 }
 /*}}}*/
@@ -573,6 +638,7 @@ static void prochandler (
 	const char *msg,
 	void *arg)
 {
+    Tcl_Panic(EXTENSION_NAME " not supporting process grabbing yet");
 }
 /*}}}*/
 
