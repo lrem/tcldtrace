@@ -484,6 +484,7 @@ test "list-2.2" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
 test "list-2.3" "count syscall::exec:*" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0 1]
 	set p [::dtrace::compile $h {syscall::exec:}]
+	set result 0
 	proc callback {probe args} {
 		global result
 		incr result
