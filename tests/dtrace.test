@@ -476,7 +476,6 @@ test "list-2.2" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
 	set ::result 0
 } -body {
 	::dtrace::list $p callback {}
-	return $result
 	set ::result
 } -cleanup {
 	::dtrace::close $h
@@ -484,7 +483,7 @@ test "list-2.2" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
 
 test "list-2.3" "count syscall::write:" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0 1]
-	set p [::dtrace::compile $h {syscall::exec:}]
+	set p [::dtrace::compile $h {syscall::write:}]
 	proc callback {probe args} {
 		incr ::result
 	}
