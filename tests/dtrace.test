@@ -5,12 +5,12 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 	namespace import ::tcltest::*
 }
 
+package require dtrace
+
 testConstraint tcl85 [package vsatisfies [package present Tcl] 8.5]
 testConstraint tracePrivs [expr {
 	!([catch {::dtrace::close [::dtrace::open]} msg] &&
 	[string match {*requires additional privileges} $msg])}]
-
-package require dtrace
 
 # Tests not requiring root {{{
 
