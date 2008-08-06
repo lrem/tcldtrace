@@ -49,7 +49,7 @@
 /* This macro is used in intermediate callbacks.
  */
 #define CallbackEval(interp, objv, cbname, errcode) {\
-    static const size_t s = sizeof(objv)/sizeof(Tcl_Obj*);\
+    static const int s = sizeof(objv)/sizeof(Tcl_Obj*);\
     int i, result;\
     for (i = 0; i < s; i++) {\
 	Tcl_IncrRefCount(objv[i]);\
@@ -99,7 +99,7 @@ static char *get_option (
 	if (opt == DTRACEOPT_UNSET) {
 	    opt = 0;
 	}
-	snprintf(value, 12, "%d", opt);
+	snprintf(value, 12, "%lld", opt);
     }
     return value;
 }
@@ -1530,7 +1530,7 @@ int Dtrace_Init (
 	Tcl_Interp *interp)
 {
 
-    Tcl_Namespace *namespace;
+    /* Tcl_Namespace *namespace; */
     int major;
     int minor;
     dtrace_data *dd;
