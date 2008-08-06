@@ -274,6 +274,14 @@ dist: dist-clean ChangeLog
 		cp -p $$i $(DIST_DIR)/ ; \
 	    fi; \
 	done;
+	if test -d $(srcdir)/generic ; then \
+	    mkdir $(DIST_DIR)/generic; \
+	    for i in $(srcdir)/generic/*.[ch]; do \
+		if [ -f $$i ]; then \
+		    cp -p $$i $(DIST_DIR)/generic/ ; \
+		fi; \
+	    done; \
+	fi; \
 
 	mkdir $(DIST_DIR)/tclconfig
 	cp $(srcdir)/tclconfig/install-sh $(srcdir)/tclconfig/tcl.m4 \
@@ -281,7 +289,7 @@ dist: dist-clean ChangeLog
 	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
 	chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc generic library tests darwin solaris'; \
+	list='demos doc library tests darwin solaris'; \
 	for p in $$list; do \
 	    if test -d $(srcdir)/$$p ; then \
 		mkdir $(DIST_DIR)/$$p; \
