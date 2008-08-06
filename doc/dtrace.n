@@ -1,0 +1,11 @@
+.TH dtrace n 4.1 "Tcl-Extensions"
+.HS dtrace tcl
+.BS
+.SH NAME
+dtrace \- TclDTrace extension
+.SH SYNOPSIS
+\fBdtrace\fI \fR
+.br
+.SH DESCRIPTION
+TclDTrace
+.PP
