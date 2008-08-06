@@ -27,8 +27,11 @@
  * $Id$
  * }}} */
 
-#include <strings.h>
 #include "dtrace.h"
+
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
 /* Macros {{{ */
 
@@ -261,10 +264,10 @@ static handle_data *new_hd (
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
 
-    Tcl_MutexLock(idMutex);
+    Tcl_MutexLock(&idMutex);
     *id = next_free_id;
     next_free_id++;
-    Tcl_MutexUnlock(idMutex);
+    Tcl_MutexUnlock(&idMutex);
 
     hd = (handle_data*) ckalloc(sizeof(handle_data));
     memset(hd, 0, sizeof(handle_data));
@@ -309,10 +312,10 @@ static Tcl_Obj *register_pd (
 	Tcl_Panic(EXTENSION_NAME " hash table not found");
     }
 
-    Tcl_MutexLock(pidMutex);
+    Tcl_MutexLock(&pidMutex);
     id = next_free_pid;
     next_free_pid++;
-    Tcl_MutexUnlock(pidMutex);
+    Tcl_MutexUnlock(&pidMutex);
 
     hentry = Tcl_CreateHashEntry(htable, (char*) id, &isNew);
     if (!isNew) {
