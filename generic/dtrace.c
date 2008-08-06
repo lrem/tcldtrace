@@ -43,22 +43,25 @@
     Tcl_SetErrorCode(interp, ERROR_CLASS, code, NULL);\
     return TCL_ERROR;
 
-/* These two macros are used in intermediate callbacks to protect
- * the objv table from overwriting inside Tcl.
+/* This macro is used in intermediate callbacks.
  */
-#define objvIncrRef(n) {\
-    int i;\
-    for (i = 0; i < 3; i++) {\
+#define CallbackEval(interp, objv, cbname, errcode) {\
+    static const size_t s = sizeof(objv)/sizeof(Tcl_Obj*);\
+    int i, result;\
+    for (i = 0; i < s; i++) {\
 	Tcl_IncrRefCount(objv[i]);\
+    }\
+    result = Tcl_EvalObjv(interp, s, objv, TCL_EVAL_GLOBAL);\
+    for (i = 0; i < s; i++) {\
+	Tcl_DecrRefCount(objv[i]);\
+    }\
+    if (result != TCL_OK) {\
+	Tcl_AddErrorInfo(interp, "\n    (running " cbname " callback)");\
+	Tcl_BackgroundError(interp);\
+	return errcode;\
     }\
 }
 
-#define objvDecrRef(n) {\
-    int i;\
-    for (i = 0; i < 3; i++) {\
-	Tcl_DecrRefCount(objv[i]);\
-    }\
-}
 /* }}} */
 
 /* Helpers {{{ */
@@ -513,16 +516,7 @@ static int chew (
 
     objv[4] = hd->args[cb_probe_desc];
 
-    objvIncrRef(5);
-
-    if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
-	Tcl_AddErrorInfo(arg->hd->interp, 
-		"\n    (running probe_desc callback)");
-	Tcl_BackgroundError(arg->hd->interp);
-	return DTRACE_CONSUME_ERROR;
-    }
-
-    objvDecrRef(5);
+    CallbackEval(hd->interp, objv, "probe_desc", DTRACE_CONSUME_ERROR);
 
     return DTRACE_CONSUME_THIS;
 }
@@ -587,16 +581,7 @@ static int bufhandler (
 
     objv[6] = Tcl_NewStringObj(bufdata->dtbda_buffered, -1);
 
-    objvIncrRef(7);
-
-    if (Tcl_EvalObjv(hd->interp, 7, objv, 0) != TCL_OK) {
-	Tcl_AddErrorInfo(arg->hd->interp, 
-		"\n    (running probe_output callback)");
-	Tcl_BackgroundError(arg->hd->interp);
-	return DTRACE_HANDLE_ABORT;
-    }
-
-    objvDecrRef(7);
+    CallbackEval(hd->interp, objv, "probe_output", DTRACE_HANDLE_ABORT);
 
     return DTRACE_HANDLE_OK;
 }
@@ -637,16 +622,7 @@ static int drophandler (
 
     objv[5] = hd->args[cb_drop];
 
-    objvIncrRef(6);
-
-    if (Tcl_EvalObjv(hd->interp, 6, objv, 0) != TCL_OK) {
-	Tcl_AddErrorInfo(arg->hd->interp, 
-		"\n    (running drop callback)");
-	Tcl_BackgroundError(arg->hd->interp);
-	return DTRACE_HANDLE_ABORT;
-    }
-
-    objvDecrRef(6);
+    CallbackEval(hd->interp, objv, "drop", DTRACE_HANDLE_ABORT);
 
     return DTRACE_HANDLE_OK;
 }
@@ -686,16 +662,7 @@ static int errhandler (
 
     objv[4] = hd->args[cb_error];
 
-    objvIncrRef(5);
-
-    if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
-	Tcl_AddErrorInfo(arg->hd->interp, 
-		"\n    (running error callback)");
-	Tcl_BackgroundError(arg->hd->interp);
-	return DTRACE_HANDLE_ABORT;
-    }
-
-    objvDecrRef(5);
+    CallbackEval(hd->interp, objv, "error", DTRACE_HANDLE_ABORT);
 
     return DTRACE_HANDLE_OK;
 }
@@ -747,16 +714,7 @@ static int listProbe (
 
     objv[2] = arg->args;
 
-    objvIncrRef(3);
-
-    if (Tcl_EvalObjv(arg->hd->interp, 3, objv, 0) != TCL_OK) {
-	Tcl_AddErrorInfo(arg->hd->interp, 
-		"\n    (running list callback)");
-	Tcl_BackgroundError(arg->hd->interp);
-	return DTRACE_HANDLE_ABORT;
-    }
-
-    objvDecrRef(3);
+    CallbackEval(arg->hd->interp, objv, "list", DTRACE_HANDLE_ABORT);
 
     return 0;
 }
