@@ -382,13 +382,13 @@ test "process-2.1" "fire the BEGIN probe" -constraints {tracePrivs} -setup {
 	set p [::dtrace::compile $h {:::BEGIN}]	
 	::dtrace::exec $p
 	proc cb_probe_desc {probe cpu id args} {
-		global result
-		set result $probe
+		set ::result $probe
 	}
 	::dtrace::go $h probe_desc {cb_probe_desc {}}
+	set ::result 0
 } -body {
 	::dtrace::process $h 1
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -result {dtrace:::BEGIN}
@@ -399,13 +399,13 @@ test "process-2.2" "probe_desc unfolded" -constraints {tracePrivs} -setup {
 	set p [::dtrace::compile $h {:::BEGIN}]	
 	::dtrace::exec $p
 	proc cb_probe_desc {probe cpu id args} {
-		global result
-		set result $probe
+		set ::result $probe
 	}
 	::dtrace::go $h probe_desc {cb_probe_desc {}}
+	set ::result 0
 } -body {
 	::dtrace::process $h 1
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -result {dtrace {} {} BEGIN}
@@ -419,13 +419,13 @@ test "process-3.1" "trace the BEGIN probe" -constraints {tracePrivs} -setup {
 	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]	
 	::dtrace::exec $p
 	proc cb_probe_output {probe cpu id args type output} {
-		global result
-		set result [list $probe $type $output]
+		set ::result [list $probe $type $output]
 	}
 	::dtrace::go $h probe_output {cb_probe_output {}}
+	set ::result 0
 } -body {
 	::dtrace::process $h 1
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -match regexp -result {dtrace:::BEGIN DIFEXPR {\s*NIGEB\s*}}
@@ -435,13 +435,13 @@ test "process-3.2" "probe_output unfolded" -constraints {tracePrivs} -setup {
 	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]	
 	::dtrace::exec $p
 	proc cb_probe_output {probe cpu id args type output} {
-		global result
-		set result [list $probe $type $output]
+		set ::result [list $probe $type $output]
 	}
 	::dtrace::go $h probe_output {cb_probe_output {}}
+	set ::result 0
 } -body {
 	::dtrace::process $h 1
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -match regexp -result {{dtrace {} {} BEGIN} DIFEXPR {\s*NIGEB\s*}}
@@ -457,12 +457,12 @@ test "list-2.1" "BEGIN probe folded" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 1 1]
 	set p [::dtrace::compile $h {:::BEGIN}]
 	proc callback {probe args} {
-		global result
-		set result $probe
+		set ::result $probe
 	}
+	set ::result 0
 } -body {
 	::dtrace::list $p callback {}
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -result {dtrace:::BEGIN}
@@ -471,27 +471,27 @@ test "list-2.2" "BEGIN probe unfolded" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0 1]
 	set p [::dtrace::compile $h {:::BEGIN}]
 	proc callback {probe args} {
-		global result
-		set result $probe
+		set ::result $probe
 	}
+	set ::result 0
 } -body {
 	::dtrace::list $p callback {}
 	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -result {dtrace {} {} BEGIN}
 
-test "list-2.3" "count syscall::exec:*" -constraints {tracePrivs} -setup {
+test "list-2.3" "count syscall::write:" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0 1]
 	set p [::dtrace::compile $h {syscall::exec:}]
-	set result 0
 	proc callback {probe args} {
-		global result
-		incr result
+		incr ::result
 	}
+	set ::result 0
 } -body {
 	::dtrace::list $p callback {}
-	return $result
+	set ::result
 } -cleanup {
 	::dtrace::close $h
 } -result {2}
