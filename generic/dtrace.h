@@ -29,13 +29,15 @@
 #ifndef __DTRACE_H
 #define __DTRACE_H
 
-#define TCLDTRACE_VERSION	"1.0"
-#define TCLDTRACE_MAJOR	        1
-#define TCLDTRACE_MINOR	        0
+#ifdef HAVE_CONFIG_H
+#include "dtraceConfig.h"
+#endif
 
-#define EXTENSION_NAME          "dtrace"
-#define NS		        EXTENSION_NAME
-#define ERROR_CLASS 	        "DTRACE"
+#define TCLDTRACE_VERSION	PACKAGE_VERSION
+
+#define EXTENSION_NAME		PACKAGE_NAME
+#define NS			EXTENSION_NAME
+#define ERROR_CLASS		"DTRACE"
 
 #define COMMAND		        Tcl_GetString(objv[0])
 
