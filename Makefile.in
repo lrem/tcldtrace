@@ -292,7 +292,7 @@ dist: dist-clean ChangeLog
 	(cd $(DIST_ROOT); $(COMPRESS);)
 
 ChangeLog::
-	cd $(srcdir) && svn2cl -r BASE:9 -a -i --reparagraph
+	cd $(srcdir); svn2cl -r BASE:9 -a -i --reparagraph || touch $@
 
 #========================================================================
 # End of user-definable section
