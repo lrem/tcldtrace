@@ -516,7 +516,10 @@ static int chew (
     objvIncrRef(5);
 
     if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
-	/* What now?! */
+	Tcl_AddErrorInfo(arg->hd->interp, 
+		"\n    (running probe_desc callback)");
+	Tcl_BackgroundError(arg->hd->interp);
+	return DTRACE_CONSUME_ERROR;
     }
 
     objvDecrRef(5);
@@ -587,7 +590,10 @@ static int bufhandler (
     objvIncrRef(7);
 
     if (Tcl_EvalObjv(hd->interp, 7, objv, 0) != TCL_OK) {
-	/* What now?! */
+	Tcl_AddErrorInfo(arg->hd->interp, 
+		"\n    (running probe_output callback)");
+	Tcl_BackgroundError(arg->hd->interp);
+	return DTRACE_HANDLE_ABORT;
     }
 
     objvDecrRef(7);
@@ -634,7 +640,10 @@ static int drophandler (
     objvIncrRef(6);
 
     if (Tcl_EvalObjv(hd->interp, 6, objv, 0) != TCL_OK) {
-	/* What now?! */
+	Tcl_AddErrorInfo(arg->hd->interp, 
+		"\n    (running drop callback)");
+	Tcl_BackgroundError(arg->hd->interp);
+	return DTRACE_HANDLE_ABORT;
     }
 
     objvDecrRef(6);
@@ -680,7 +689,10 @@ static int errhandler (
     objvIncrRef(5);
 
     if (Tcl_EvalObjv(hd->interp, 5, objv, 0) != TCL_OK) {
-	/* What now?! */
+	Tcl_AddErrorInfo(arg->hd->interp, 
+		"\n    (running error callback)");
+	Tcl_BackgroundError(arg->hd->interp);
+	return DTRACE_HANDLE_ABORT;
     }
 
     objvDecrRef(5);
@@ -738,7 +750,10 @@ static int listProbe (
     objvIncrRef(3);
 
     if (Tcl_EvalObjv(arg->hd->interp, 3, objv, 0) != TCL_OK) {
-	/* What now?! */
+	Tcl_AddErrorInfo(arg->hd->interp, 
+		"\n    (running list callback)");
+	Tcl_BackgroundError(arg->hd->interp);
+	return DTRACE_HANDLE_ABORT;
     }
 
     objvDecrRef(3);
