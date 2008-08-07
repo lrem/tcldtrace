@@ -1458,6 +1458,7 @@ static int Aggregations (
 	int exec)
 {
     handle_data *hd;
+    Tcl_Obj result;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "handle");
@@ -1472,6 +1473,18 @@ static int Aggregations (
 	return TCL_ERROR;
     }
 
+    if (dtrace_aggregate_walk_sorted(hd->handle, chewagg, &result) == -1) {
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
+	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+
+	return TCL_ERROR;
+    }
+
+    Tcl_SetResult(interp, result, TCL_VOLATILE);
     return TCL_OK;
 }
 /*}}}*/
