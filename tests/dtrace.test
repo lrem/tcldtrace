@@ -256,6 +256,24 @@ test "list-1.3" "list with invalid program" -body {
 
 # }}}
 
+# ::dtrace::aggregations {{{
+
+test "aggregations-1.1" "too few arguments for aggregations" -body {
+	::dtrace::aggregations
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::aggregations handle"}
+
+test "aggregations-1.2" "too much much for aggregations" -body {
+	::dtrace::aggregations a b c
+} -returnCodes {1} \
+-result {wrong # args: should be "::dtrace::aggregations handle"}
+
+test "aggregations-1.3" "aggregations with invalid handle" -body {
+	::dtrace::aggregations -1 
+} -returnCodes {1} -result {::dtrace::aggregations bad handle}
+
+# }}}
+
 # Ensemble test {{{
 test "ensemble-1.3" "looking for ensemble" -constraints {tcl85} -body {
 	dtrace close
@@ -494,6 +512,32 @@ test "list-2.3" "count syscall::write:" -constraints {tracePrivs} -setup {
 } -cleanup {
 	::dtrace::close $h
 } -result {2}
+
+# }}}
+
+# ::dtrace::aggregations {{{
+
+test "aggregations-2.1" "aggregations" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
+	set p [::dtrace::compile $h {
+		:::BEGIN
+		{
+			@agg1["fooshmoo"] = avg(1);
+			@agg2["bar", "baz"] = sum(1);
+
+			@agg1["fooshmoo"] = avg(5);
+			@agg2["bar", "baz"] = sum(1);
+			@agg3["bar", "baz", "bam"] = sum(1);
+		}
+	} ]	
+	::dtrace::exec $p
+	::dtrace::go $h 
+	::dtrace::process $h 1
+} -body {
+	::dtrace::aggregations $h
+} -cleanup {
+	::dtrace::close $h
+} -result {fooshmoo 3 {bar baz} 2 {bar baz bam} 1}
 
 # }}}
 

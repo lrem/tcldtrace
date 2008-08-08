@@ -516,7 +516,6 @@ static Tcl_Obj *cutWhiteSpace (
 	}
     }
     buf[++size] = 0;
-    size++;
     
     return Tcl_NewStringObj(buf, size);
 }
