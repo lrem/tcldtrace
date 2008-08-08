@@ -41,6 +41,8 @@
 
 #define COMMAND		        Tcl_GetString(objv[0])
 
+#define TUPLE_STRLEN            128
+
 #include <dtrace.h>
 #include <libproc.h>
 #include <tcl.h>

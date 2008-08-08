@@ -481,6 +481,47 @@ static Tcl_Obj *formatProbeDesc (
 }
 /*}}}*/
 
+/* cutWhiteSpace {{{
+ *
+ *	Get rid of leading and trailing whitespace.
+ *
+ * Results:
+ *	Tcl_Obj string object cleared from the whitespace.
+ *
+ * Side effects:
+ *	None.
+ */
+
+static Tcl_Obj *cutWhiteSpace (
+	const char *csource
+	)
+{
+    /* We need to get own copy, because we need to put a terminating NULL
+     * quite probably somewhere in the middle of the string (and we get it
+     * const).
+     */
+    char buf[TUPLE_STRLEN];
+    char *source = (char*) csource;
+    int size;
+    int i;
+
+    while (*source == ' ') {
+	source++;
+    }
+
+    for (int i = 0; source[i] && i < TUPLE_STRLEN; i++) {
+	buf[i] = source[i];
+	if (buf[i] != ' ') {
+	    size = i;
+	}
+    }
+    buf[++size] = 0;
+    size++;
+    
+    return Tcl_NewStringObj(buf, size);
+}
+/*}}}*/
+
 /* }}} */
 
 /* Intermediate callbacks {{{ */
@@ -628,7 +669,7 @@ static int agghandler (
 
 	    Tcl_ListObjAppendElement(hd->interp, agg->list, agg->tuple);
 	    Tcl_ListObjAppendElement(hd->interp, agg->list,
-		    Tcl_NewStringObj(bufdata->dtbda_buffered, -1));
+		    cutWhiteSpace(bufdata->dtbda_buffered));
 	    agg->tuple = NULL;
 	}
 	else {
@@ -637,7 +678,7 @@ static int agghandler (
 	    }
 
 	    Tcl_ListObjAppendElement(hd->interp, agg->tuple,
-		    Tcl_NewStringObj(bufdata->dtbda_buffered, -1));
+		    cutWhiteSpace(bufdata->dtbda_buffered));
 	}
     }
     else {
