@@ -590,6 +590,52 @@ static int bufhandler (
 }
 /*}}}*/
 
+/* agghandler {{{
+ *
+ *	Intermediate callback between libdtrace and Tcl code.
+ *
+ * Results:
+ *	DTRACE_HANDLE_OK upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate Tcl callback is called.
+ */
+
+static int agghandler (
+	const dtrace_bufdata_t *bufdata,
+	void *arg)
+{
+    handle_data *hd = (handle_data*) arg;
+
+    return DTRACE_HANDLE_OK;
+}
+/*}}}*/
+
+/* buf_or_agg {{{
+ *
+ * 	Multiplexer between handlers for aggregation and normal actions
+ * 	buffers.
+ *
+ * Results:
+ *	DTRACE_HANDLE_OK upon successful consumption.
+ *
+ * Side effects:
+ *	Appropriate buffered ouptut handler is called.
+ */
+
+static int buf_or_agg (
+	const dtrace_bufdata_t *bufdata,
+	void *arg)
+{
+    if (bufdata->dtbda_aggdata) {
+	return agghandler(bufdata, arg);
+    }
+    else {
+	return bufhandler(bufdata, arg);
+    }
+}
+/*}}}*/
+
 /* drophandler {{{
  *
  *	Intermediate callback between libdtrace and Tcl code.
@@ -852,7 +898,7 @@ static int Open (
 	OpenThrow("LIB", " failed to establish proc handler", NULL);
     }
 
-    if (dtrace_handle_buffered(hd->handle, &bufhandler, hd) == -1) {
+    if (dtrace_handle_buffered(hd->handle, &buf_or_agg, hd) == -1) {
 	OpenThrow("LIB", " failed to establish buffered handler", NULL);
     }
 
@@ -1454,11 +1500,9 @@ static int Aggregations (
 	ClientData cd,
 	Tcl_Interp *interp,
 	int objc,
-	Tcl_Obj *const objv[],
-	int exec)
+	Tcl_Obj *const objv[])
 {
     handle_data *hd;
-    Tcl_Obj result;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "handle");
@@ -1473,7 +1517,7 @@ static int Aggregations (
 	return TCL_ERROR;
     }
 
-    if (dtrace_aggregate_walk_sorted(hd->handle, chewagg, &result) == -1) {
+    if (dtrace_aggregate_print(hd->handle, NULL, NULL) == -1) {
 	char errnum[16];
 
 	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
@@ -1484,7 +1528,6 @@ static int Aggregations (
 	return TCL_ERROR;
     }
 
-    Tcl_SetResult(interp, result, TCL_VOLATILE);
     return TCL_OK;
 }
 /*}}}*/
