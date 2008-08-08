@@ -606,6 +606,43 @@ static int agghandler (
 	void *arg)
 {
     handle_data *hd = (handle_data*) arg;
+    aggregation_data *agg = &hd->agg;
+
+    /* This finally turned out to be unneeded.
+    if (hd->agg.desc != bufdata->dtbda_aggdata->dtada_desc) {
+	printf("Aggregation description changed!\n");
+	hd->agg.desc = bufdata->dtbda_aggdata->dtada_desc;
+
+    }
+    */
+
+    if (bufdata->dtbda_recdesc) {
+	if (DTRACEACT_ISAGG(bufdata->dtbda_recdesc->dtrd_action)) {
+	    /* This is the value. By now, we got all the tuple members inside
+	     * hd->agg->tuple. Next we have to add that list to the list, 
+	     * add the value and clean up after constructing the tuple.
+	     */
+	    if (agg->tuple == NULL) {
+		Tcl_Panic(EXTENSION_NAME " empty aggregation tuple");
+	    }
+
+	    Tcl_ListObjAppendElement(hd->interp, agg->list, agg->tuple);
+	    Tcl_ListObjAppendElement(hd->interp, agg->list,
+		    Tcl_NewStringObj(bufdata->dtbda_buffered, -1));
+	    agg->tuple = NULL;
+	}
+	else {
+	    if (agg->tuple == NULL) {
+		agg->tuple = Tcl_NewListObj(0, NULL);
+	    }
+
+	    Tcl_ListObjAppendElement(hd->interp, agg->tuple,
+		    Tcl_NewStringObj(bufdata->dtbda_buffered, -1));
+	}
+    }
+    else {
+	/* This is the extra whitespace libdtrace serves us, ignore. */
+    }
 
     return DTRACE_HANDLE_OK;
 }
@@ -1517,6 +1554,8 @@ static int Aggregations (
 	return TCL_ERROR;
     }
 
+    hd->agg.list = Tcl_NewListObj(0, NULL);
+    /* Content appended within the callback. */
     if (dtrace_aggregate_print(hd->handle, NULL, NULL) == -1) {
 	char errnum[16];
 
@@ -1528,6 +1567,7 @@ static int Aggregations (
 	return TCL_ERROR;
     }
 
+    Tcl_SetObjResult(interp, hd->agg.list);
     return TCL_OK;
 }
 /*}}}*/

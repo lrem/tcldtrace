@@ -57,10 +57,22 @@ typedef struct dtrace_data {
     Tcl_HashTable *programs;
 } dtrace_data;
 
+typedef struct aggregation_data {
+    Tcl_Obj *tuple;
+    Tcl_Obj *list;
+} aggregation_data;
+
 typedef struct handle_data {
     dtrace_hdl_t *handle;
     options_t options;
     Tcl_Interp *interp;
+
+    /* This is used in aggregation handling, where a single data line is 
+     * catched with mutliple callbacks. Creating a separate complex type 
+     * would complicate the normal bufhandler if passed instaad this one
+     * (what may actually be the way we go in future).
+     */
+    aggregation_data agg;
 
     /* Callbacks and args for them */
     Tcl_Obj *callbacks[CALLBACKS_COUNT];
@@ -117,4 +129,4 @@ static const char *callbackNames[] = {
 
 #endif /* __DTRACE_H */
 
-/* vim: set cindent ts=8 sw=4 et tw=80 foldmethod=marker: */
+/* vim: set cindent ts=8 sw=4 et tw=78 foldmethod=marker: */
