@@ -1612,6 +1612,42 @@ static int Aggregations (
 }
 /*}}}*/
 
+/* Grab {{{
+ *
+ *	Implements the ::dtrace::grab command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ * 	A process is grabbed.
+ */
+
+static int Grab (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    handle_data *hd;
+
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "handle pid");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = get_hd(interp, objv[1]);
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+}
+/*}}}*/
+
 /* }}} */
 
 /* Module (de)initialization {{{ */
@@ -1699,6 +1735,7 @@ void onDestroy (
  *		::dtrace::process
  *		::dtrace::list
  *		::dtrace::aggregations
+ *		::dtrace::grab
  */
 
 int Dtrace_Init (
@@ -1744,6 +1781,7 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::process", Process, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::list", List, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::aggregations", Aggregations, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::grab", Grab, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {
