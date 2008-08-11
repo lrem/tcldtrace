@@ -76,6 +76,13 @@ typedef struct handle_data {
      */
     aggregation_data agg;
 
+    /* Processess grabbed with ::dtrace::grab need to be continued in
+     * ::dtrace::go, so we neet to keep them in the meantime.
+     */
+    struct ps_prochandle **processes;
+    int proc_count;
+    int proc_capacity;
+
     /* Callbacks and args for them */
     Tcl_Obj *callbacks[CALLBACKS_COUNT];
     Tcl_Obj *args[CALLBACKS_COUNT];

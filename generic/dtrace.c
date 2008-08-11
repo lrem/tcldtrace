@@ -33,6 +33,8 @@
 #include <string.h>
 #endif
 
+typedef struct ps_prochandle prochandle;
+
 /* Macros {{{ */
 
 /* Repeating code block found in the Open function.
@@ -806,7 +808,7 @@ static int errhandler (
  */
 
 static void prochandler (
-	struct ps_prochandle *P,
+	prochandle *P,
 	const char *msg,
 	void *arg)
 {
@@ -1394,6 +1396,9 @@ static int Go (
 	return TCL_ERROR;
     }
 
+    for (i = 0; i < hd->proc_count; i++)
+	dtrace_proc_continue(hd->handle, hd->processes[i]);
+
     return TCL_OK;
 }
 /*}}}*/
@@ -1630,6 +1635,8 @@ static int Grab (
 	Tcl_Obj *const objv[])
 {
     handle_data *hd;
+    prochandle *proc;
+    pid_t pid;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, "handle pid");
@@ -1643,6 +1650,36 @@ static int Grab (
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
 	return TCL_ERROR;
     }
+
+    if (Tcl_GetLongFromObj(interp, objv[2], &pid) != TCL_OK) {
+	Tcl_AppendResult(interp, "\n", COMMAND,  " bad pid", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    proc = dtrace_proc_grab(hd->handle, pid, 0);
+    if (proc == NULL) {
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);
+	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+
+	return TCL_ERROR;
+    }
+
+    /* Process grabbed. Now we need to record it inside handle data. This is
+     * done with an ever-growing variable size vector. Which we grow now, if
+     * it's needed. Note it's initialized with memset() in new_hd().
+     */
+    if (hd->proc_count == hd->proc_capacity) {
+	hd->proc_capacity = 2 * hd->proc_capacity + 1;
+	hd->processes = (prochandle**) ckrealloc((char*) hd->processes, 
+		hd->proc_capacity * sizeof (prochandle*));
+    }
+    hd->processes[hd->proc_count] = proc;
+    hd->proc_count++;
 
     return TCL_OK;
 }
