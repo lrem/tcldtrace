@@ -808,11 +808,26 @@ static int errhandler (
  */
 
 static void prochandler (
-	prochandle *P,
+	prochandle *proc,
 	const char *msg,
 	void *arg)
 {
-    Tcl_Panic(EXTENSION_NAME " not supporting process grabbing yet");
+    handle_data *hd = (handle_data*) arg;
+    Tcl_Obj *objv[4];
+
+    if(hd->callbacks[cb_proc] == NULL) {
+	return;
+    }
+
+    objv[0] = hd->callbacks[cb_proc];
+
+    objv[1] = Tcl_NewIntObj(Pstatus(proc)->pr_pid);
+
+    objv[2] = Tcl_NewStringObj(msg, -1);
+
+    objv[3] = hd->args[cb_proc];
+
+    CallbackEval(hd->interp, objv, "proc", );
 }
 /*}}}*/
 
@@ -1685,6 +1700,77 @@ static int Grab (
 }
 /*}}}*/
 
+/* Launch {{{
+ *
+ *	Implements the ::dtrace::launch command.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ * 	An already-grabbed process is created.
+ */
+
+static int Launch (
+	ClientData cd,
+	Tcl_Interp *interp,
+	int objc,
+	Tcl_Obj *const objv[])
+{
+    handle_data *hd;
+    prochandle *proc;
+    pid_t pid;
+    char **argv;
+    int i;
+
+    if (objc < 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "handle cmd");
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
+	return TCL_ERROR;
+    }
+
+    hd = get_hd(interp, objv[1]);
+    if (hd == NULL || hd->handle == NULL) {
+	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);
+	return TCL_ERROR;
+    }
+
+    argv = (char**) ckalloc(sizeof(char*) * (objc - 1));
+    for (i = 2; i < objc; i++) {
+	argv[i-2] = Tcl_GetString(objv[i]);
+    }
+    argv[i-2] = NULL;
+    proc = dtrace_proc_create(hd->handle, argv[0], argv);
+    ckfree((char*)argv);
+
+    if (proc == NULL) {
+	char errnum[16];
+
+	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
+		dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);
+	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+
+	return TCL_ERROR;
+    }
+
+    /* Process grabbed. Now we need to record it inside handle data. This is
+     * done with an ever-growing variable size vector. Which we grow now, if
+     * it's needed. Note it's initialized with memset() in new_hd().
+     */
+    if (hd->proc_count == hd->proc_capacity) {
+	hd->proc_capacity = 2 * hd->proc_capacity + 1;
+	hd->processes = (prochandle**) ckrealloc((char*) hd->processes, 
+		hd->proc_capacity * sizeof (prochandle*));
+    }
+    hd->processes[hd->proc_count] = proc;
+    hd->proc_count++;
+
+    return TCL_OK;
+}
+/*}}}*/
+
 /* }}} */
 
 /* Module (de)initialization {{{ */
@@ -1773,6 +1859,7 @@ void onDestroy (
  *		::dtrace::list
  *		::dtrace::aggregations
  *		::dtrace::grab
+ *		::dtrace::launch
  */
 
 int Dtrace_Init (
@@ -1819,6 +1906,7 @@ int Dtrace_Init (
     Tcl_CreateObjCommand(interp, NS "::list", List, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::aggregations", Aggregations, NULL, NULL);
     Tcl_CreateObjCommand(interp, NS "::grab", Grab, NULL, NULL);
+    Tcl_CreateObjCommand(interp, NS "::launch", Launch, NULL, NULL);
 
     Tcl_GetVersion(&major, &minor, NULL, NULL);
     if (8 <= major && 5 <= minor) {

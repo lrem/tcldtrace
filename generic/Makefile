@@ -15,7 +15,7 @@ CC                      = cc
 DEFS                    += -DUSE_TCL_STUBS -DTCL_THREADS -DHAVE_STRING_H \
                            -DPACKAGE_NAME=\"dtrace\" -DPACKAGE_VERSION=\"1.0\"
 CFLAGS                  = -g ${SHLIB_CFLAGS} ${DEFS} -I. -I- ${INCLUDES}
-SHLIB_LD_LIBS           = -ldtrace -ltclstub8.4 -lc
+SHLIB_LD_LIBS           = -ldtrace -ltclstub8.4 -lc -lproc
 
 all: dtrace${SHLIB_SUFFIX}
 
