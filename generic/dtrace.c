@@ -1168,7 +1168,7 @@ static int Compile (
 
     if (objc < 3) {
 	Tcl_WrongNumArgs(interp, 1, objv,
-		"handle program ?{argument0 argument1 ...}?");
+		"handle program ?argument0 argument1 ...?");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
     }
@@ -1352,7 +1352,7 @@ static int Go (
 
     if (objc < 2 || objc % 2 == 1) {
 	Tcl_WrongNumArgs(interp, 1, objv,
-		"handle ?callback {proc ?args?} ...?");
+		"handle ?callback {proc ?arg?} ...?");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
     }
@@ -1550,7 +1550,7 @@ static int List (
 
     if (objc != 4) {
 	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program"
-		" list_callback args");
+		" list_callback arg");
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
     }
