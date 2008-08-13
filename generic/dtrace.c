@@ -511,7 +511,7 @@ static Tcl_Obj *cutWhiteSpace (
 	source++;
     }
 
-    for (int i = 0; source[i] && i < TUPLE_STRLEN; i++) {
+    for (i = 0; source[i] && i < TUPLE_STRLEN; i++) {
 	buf[i] = source[i];
 	if (buf[i] != ' ') {
 	    size = i;
