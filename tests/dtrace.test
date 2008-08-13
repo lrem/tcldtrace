@@ -67,7 +67,7 @@ test "configure-1.3" "configuring invalid handle" -body {
 
 test "compile-1.1" "too few arguments for compile" -body {
 	::dtrace::compile
-} -returnCodes {1} -result {wrong # args: should be "::dtrace::compile handle program ?{argument0 argument1 ...}?"}
+} -returnCodes {1} -result {wrong # args: should be "::dtrace::compile handle program ?argument0 argument1 ...?"}
 
 test "compile-1.2" "compiling with invalid handle" -body {
 	::dtrace::compile 0 {:::entry}
@@ -142,12 +142,12 @@ test "info-1.5" "info for BEGIN" -setup {
 test "go-1.1" "too few arguments for go" -body {
 	::dtrace::go
 } -returnCodes {1} -result \
-{wrong # args: should be "::dtrace::go handle ?callback {proc ?args?} ...?"}
+{wrong # args: should be "::dtrace::go handle ?callback {proc ?arg?} ...?"}
 
 test "go-1.2" "go with callback name and no proc" -body {
 	::dtrace::go $h probe_output
 } -returnCodes {1} -result \
-{wrong # args: should be "::dtrace::go handle ?callback {proc ?args?} ...?"}
+{wrong # args: should be "::dtrace::go handle ?callback {proc ?arg?} ...?"}
 
 
 test "go-1.3" "go with invalid handle" -body {
@@ -242,13 +242,13 @@ test "list-1.1" "too few arguments for list" -body {
 	::dtrace::list
 } -returnCodes {1} \
 -result {wrong # args: should be\
-"::dtrace::list compiled_program list_callback args"}
+"::dtrace::list compiled_program list_callback arg"}
 
 test "list-1.2" "too much much for list" -body {
 	::dtrace::list a b c d e f g
 } -returnCodes {1} \
 -result {wrong # args: should be\
-"::dtrace::list compiled_program list_callback args"}
+"::dtrace::list compiled_program list_callback arg"}
 
 test "list-1.3" "list with invalid program" -body {
 	::dtrace::list -1 fooshmoo barbaz
