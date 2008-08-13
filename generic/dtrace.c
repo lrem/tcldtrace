@@ -1719,7 +1719,6 @@ static int Launch (
 {
     handle_data *hd;
     prochandle *proc;
-    pid_t pid;
     char **argv;
     int i;
 
