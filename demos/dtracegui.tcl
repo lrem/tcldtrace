@@ -91,7 +91,7 @@ proc enableProbe {} {
     }
     grid [button .active.$topId -command [list disableProbe $topId $handle]\
     	-text "Disable probe $topId ($head)"] -sticky "ew"
-    dtrace go $handle probe_desc {descCallback {}}
+    dtrace go $handle probe_desc {descCallback {}} probe_output {outCallback {}}
     dtraceLoop $handle $topId
 }
 
@@ -102,6 +102,12 @@ proc disableProbe {id handle} {
 
 # }}}
 # Output handing and dtraceLoop {{{
+
+proc outCallback {probe cpu id arg type data} {
+    .output.text configure -state normal
+    .output.text insert 1.end "\t$data"
+    .output.text configure -state disabled
+}
 
 proc descCallback {probe args} {
     .output.text configure -state normal
