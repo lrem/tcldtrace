@@ -33,6 +33,11 @@
 #include <string.h>
 #endif
 
+#ifdef __APPLE__
+#include "arch.h"
+#include <mach/machine.h>
+#endif
+
 typedef struct ps_prochandle prochandle;
 
 /* Macros {{{ */
@@ -968,7 +973,12 @@ static int Open (
 
     /* Reasonable defaults. */
     if (dtrace_setopt(hd->handle, "bufsize", "4m") != 0
-	    || dtrace_setopt(hd->handle, "aggsize", "4m") != 0) {
+	    || dtrace_setopt(hd->handle, "aggsize", "4m") != 0
+#ifdef __APPLE__
+	    || dtrace_setopt(g_dtp, "stacksymbols", "enabled") != 0
+	    || dtrace_setopt(g_dtp, "arch", string_for_arch(host_arch)) != 0
+#endif
+	    ) {
 	OpenThrow("OPTION", " can't set default options ", NULL);
     }
 
