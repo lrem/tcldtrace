@@ -108,6 +108,9 @@ const char *basic_options[] = {
     "-quiet",
     "-bufsize",
     "-foldpdesc",
+#ifdef __APPLE__
+    "-arch",
+#endif
     NULL
 };
 
