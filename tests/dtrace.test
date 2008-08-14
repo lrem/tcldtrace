@@ -318,8 +318,10 @@ test "launch-1.4" "launch with invalid cmd" -setup {
 	::dtrace::launch $h /fooshmoo/barbaz
 } -cleanup {
 	::dtrace::close $h
-} -returnCodes {1} -result {::dtrace::launch libdtrace error: failed\
-to execute /fooshmoo/barbaz: cannot find executable file}
+} -returnCodes {1} -match regexp -result {::dtrace::launch libdtrace error:\
+failed to execute /fooshmoo/barbaz: (cannot find executable file|file is\
+set-id or unreadable \[Note: the '-c' option requires a full pathname to\
+the file\])}
 
 # }}}
 
@@ -598,8 +600,9 @@ test "grab-2.1" "grab a system process" -constraints {tracePrivs} -setup {
 	::dtrace::grab $h 0
 } -cleanup {
 	::dtrace::close $h
-} -returnCodes {1}\
--result {::dtrace::grab libdtrace error: failed to grab pid 0: system process}
+} -returnCodes {1} -match regexp \
+-result {::dtrace::grab libdtrace error: failed to grab pid 0:\
+(system process|\(ipc/\?\) unknown subsystem error)}
 
 test "grab-2.2" "grab a running process" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open]
@@ -626,14 +629,14 @@ test "grab-2.2" "grab a running process" -constraints {tracePrivs} -setup {
 
 # ::dtrace::launch {{{
 
-test "launch-2.1" "inspect /bin/true" -constraints {tracePrivs} -setup {
+test "launch-2.1" "inspect /bin/date" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open]
 	proc callback {probe args} {
 		incr ::result
 	}
 	set ::result 0
 } -body {
-	::dtrace::launch $h /bin/true
+	::dtrace::launch $h /bin/date
 	set p [::dtrace::compile $h {syscall:::/pid==$target/{}}]
 	::dtrace::exec $p
 	::dtrace::go $h probe_desc {callback {}}
@@ -652,7 +655,7 @@ test "launch-2.2" "test proc callback" -constraints {tracePrivs} -setup {
 	}
 	set ::result 0
 } -body {
-	::dtrace::launch $h /bin/true
+	::dtrace::launch $h /bin/date
 	set p [::dtrace::compile $h {syscall:::/pid==$target/{}}]
 	::dtrace::exec $p
 	::dtrace::go $h proc {callback {}}
