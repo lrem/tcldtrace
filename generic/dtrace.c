@@ -1652,6 +1652,7 @@ static int Grab (
     handle_data *hd;
     prochandle *proc;
     pid_t pid;
+    long lpid;
 
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 1, objv, "handle pid");
@@ -1666,11 +1667,12 @@ static int Grab (
 	return TCL_ERROR;
     }
 
-    if (Tcl_GetLongFromObj(interp, objv[2], &pid) != TCL_OK) {
+    if (Tcl_GetLongFromObj(interp, objv[2], &lpid) != TCL_OK) {
 	Tcl_AppendResult(interp, "\n", COMMAND,  " bad pid", NULL);
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
 	return TCL_ERROR;
     }
+    pid = lpid;
 
     proc = dtrace_proc_grab(hd->handle, pid, 0);
     if (proc == NULL) {
