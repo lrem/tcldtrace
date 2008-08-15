@@ -46,9 +46,11 @@ grid [button .editor.clear -text "Clear" -command clearEditor] \
 grid [button .editor.enable -text "Enable" -command enableProbe] \
     -row 1 -column 1 -sticky "ew"
 grid [button .editor.killall -text "Disalbe all probes" -command armageddon] \
-    -row 2 -column 0 -sticky "ew"
-grid [button .editor.reverse -text "Reverse aggregations" -command reverse] \
-    -row 2 -column 1 -sticky "ew"
+    -row 2 -columnspan 2 -sticky "ew"
+grid [checkbutton .editor.aggreverse -text "Reverse aggregations"] \
+    -row 3 -column 0 -sticky "ew"
+grid [checkbutton .editor.outreverse -text "Reverse output"] \
+    -row 3 -column 1 -sticky "ew"
 
 grid [labelframe .active -text "Active probes"] -row 1 -column 1 -sticky "nsew"
 
@@ -65,12 +67,6 @@ grid [text .output.text -width 60 -height 100 -state disabled]
 proc clearEditor {} {
     .editor.code delete 1.0 end
 }
-
-proc reverse {} {
-    global order
-    set order [expr {!$order}]
-}
-set order 0
 
 proc armageddon {} {
     foreach button [grid slaves .active] {$button invoke}
@@ -104,36 +100,53 @@ proc disableProbe {id handle} {
 # Output handing and dtraceLoop {{{
 
 proc outCallback {probe cpu id arg type data} {
+    global outreverse
     .output.text configure -state normal
-    .output.text insert 1.end "\t$data"
+    if {$outreverse} {
+        .output.text insert 1.end "$data"
+    } else {
+        .output.text insert "end -2 chars" "$data"
+    }
     .output.text configure -state disabled
 }
 
 proc descCallback {probe args} {
     .output.text configure -state normal
-    .output.text insert 1.0 "$probe\n"
+    global outreverse
+    if {$outreverse} {
+        .output.text insert 1.0 "$probe\n"
+    } else {
+        .output.text insert end "$probe\n"
+    }
     .output.text configure -state disabled
 }
 
 proc dtraceLoop {handle id} {
     if {[catch {dtrace process $handle}]} {
+        global outreverse
         .output.text configure -state normal
-        .output.text insert 1.0 "Probe $id disabled.\n"
+        if {$outreverse} {
+            .output.text insert 1.0 "Probe $id disabled.\n"
+        } else {
+            .output.text insert end "Probe $id disabled.\n"
+        }
         .output.text configure -state disabled
         catch {dtrace close $handle}
         catch {grid forget .active.$id}
     } else {
-        global order
+        global aggreverse
         set aggdata [dtrace aggregations  $handle]
-        if {$order} {set aggdata [lreverse $aggdata]}
-        .aggregations.text configure -state normal
-        .aggregations.text delete 1.0 end
-        for {set i $order} {$i < [llength $aggdata]} {incr i 2} {
-            if {$order} {set j [expr $i-1]} else {set j [expr $i+1]}
-            .aggregations.text insert end\
-                "[lindex $aggdata $i]\t[lindex $aggdata $j]\n"
+        if {[string length $aggdata] > 4} {
+            if {$aggreverse} {set aggdata [lreverse $aggdata]}
+            .aggregations.text configure -state normal
+            .aggregations.text delete 1.0 end
+            for {set i $aggreverse} {$i < [llength $aggdata]} {incr i 2} {
+                if {$aggreverse} {set j [expr $i-1]} else {set j [expr $i+1]}
+                .aggregations.text insert end\
+                    "[lindex $aggdata $i]\t[lindex $aggdata $j]\n"
         }
         .aggregations.text configure -state disabled
+        }
         after 300 [list dtraceLoop $handle $id]
     }
 }
