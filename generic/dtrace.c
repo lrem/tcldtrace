@@ -243,6 +243,9 @@ static void del_hd (
     }
 
     hd = Tcl_GetHashValue(hentry);
+    if (hd->processes) {
+	ckfree((void*) hd->processes);
+    }
     ckfree((char*) hd);
     Tcl_DeleteHashEntry(hentry);
 
@@ -1779,6 +1782,9 @@ void Dtrace_DeInit (
 
 	dtrace_close(hd->handle);
 	ckfree((void*) hd);
+	if (hd->processes) {
+	    ckfree((void*) hd->processes);
+	}
 	hentry = Tcl_NextHashEntry(&searchPtr);
     }
     Tcl_DeleteHashTable(htable);
