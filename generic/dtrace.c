@@ -72,8 +72,8 @@ typedef struct ps_prochandle prochandle;
     }\
 }
 
-/* Next three are used throughout the command implementations. These do not 
- * need to be implemented as macros because of performance reasons. It's 
+/* Next three are used throughout the command implementations. These do not
+ * need to be implemented as macros because of performance reasons. It's
  * rather because we need them to return the calling function.
  */
 #define objcCheck(arguments, successCondition)\
@@ -89,11 +89,11 @@ typedef struct ps_prochandle prochandle;
 	return TCL_ERROR;\
     }
 #define libError() {\
-    char errnum[16];\
+    char errnum[TCL_INTEGER_SPACE];\
     \
     Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",\
 	    dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);\
-    snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));\
+    snprintf(errnum, sizeof(errnum), "%d", dtrace_errno(hd->handle));\
     Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);\
     \
     return TCL_ERROR;\
@@ -122,7 +122,7 @@ static char *get_option (
 
     if (internal_option(option)) {
 	/* Only one defined for now. */
-	snprintf(value, 12, "%d", hd->options.foldpdesc);
+	snprintf(value, sizeof(value), "%d", hd->options.foldpdesc);
     }
     else {
 	dtrace_optval_t opt;
@@ -133,7 +133,7 @@ static char *get_option (
 	if (opt == DTRACEOPT_UNSET) {
 	    opt = 0;
 	}
-	snprintf(value, 12, "%lld", opt);
+	snprintf(value, sizeof(value), "%lld", opt);
     }
     return value;
 }
@@ -187,20 +187,20 @@ static int set_option (
 
 static handle_data *get_hd (
 	Tcl_Interp *interp,
-	Tcl_Obj *__id)
+	Tcl_Obj *toid)
 {
-    int _id;
+    int iid;
     char *id;
     Tcl_HashTable *htable;
     Tcl_HashEntry *hentry;
     dtrace_data *dd;
 
-    if (Tcl_GetIntFromObj(interp, __id, &_id) != TCL_OK) {
+    if (Tcl_GetIntFromObj(interp, toid, &iid) != TCL_OK) {
 	/* We want a newline between Tcl_GetIntFromObj and own message. */
 	Tcl_AppendResult(interp, "\n", NULL);
 	return NULL;
     }
-    id = (char*)(intptr_t) _id;
+    id = (char*)(intptr_t) iid;
     dd = Tcl_GetAssocData(interp, EXTENSION_NAME, NULL);
     if (dd == NULL) {
 	Tcl_Panic(EXTENSION_NAME " dtrace data not found");
@@ -553,7 +553,7 @@ static Tcl_Obj *cutWhiteSpace (
 	}
     }
     buf[++size] = 0;
-    
+
     return Tcl_NewStringObj(buf, size);
 }
 /*}}}*/
@@ -696,7 +696,7 @@ static int agghandler (
     if (bufdata->dtbda_recdesc) {
 	if (DTRACEACT_ISAGG(bufdata->dtbda_recdesc->dtrd_action)) {
 	    /* This is the value. By now, we got all the tuple members inside
-	     * hd->agg->tuple. Next we have to add that list to the list, 
+	     * hd->agg->tuple. Next we have to add that list to the list,
 	     * add the value and clean up after constructing the tuple.
 	     */
 	    if (agg->tuple == NULL) {
@@ -1250,7 +1250,7 @@ static int Exec_or_Info (
     Tcl_Obj *results[8];
     int exec_result;
 
-    
+
     objcCheck("compiled_program", objc==2);
 
     pd = get_pd(interp, objv[1]);
@@ -1354,7 +1354,7 @@ static int Go (
     handle_data *hd;
     int i;
 
-    objcCheck("handle ?callback {proc ?arg?} ...?", 2 <= objc 
+    objcCheck("handle ?callback {proc ?arg?} ...?", 2 <= objc
 	    && objc % 2 == 0);
 
     hd = get_hd(interp, objv[1]);
@@ -1550,7 +1550,7 @@ static int Aggregations (
     handle_data *hd;
 
     objcCheck("handle", objc == 2);
- 
+
     hd = get_hd(interp, objv[1]);
     handleCheck();
 
@@ -1610,7 +1610,7 @@ static int Grab (
      */
     if (hd->proc_count == hd->proc_capacity) {
 	hd->proc_capacity = 2 * hd->proc_capacity + 1;
-	hd->processes = (prochandle**) ckrealloc((char*) hd->processes, 
+	hd->processes = (prochandle**) ckrealloc((char*) hd->processes,
 		hd->proc_capacity * sizeof (prochandle*));
     }
     hd->processes[hd->proc_count] = proc;
@@ -1665,7 +1665,7 @@ static int Launch (
      */
     if (hd->proc_count == hd->proc_capacity) {
 	hd->proc_capacity = 2 * hd->proc_capacity + 1;
-	hd->processes = (prochandle**) ckrealloc((char*) hd->processes, 
+	hd->processes = (prochandle**) ckrealloc((char*) hd->processes,
 		hd->proc_capacity * sizeof (prochandle*));
     }
     hd->processes[hd->proc_count] = proc;
@@ -1782,8 +1782,11 @@ int Dtrace_Init (
      * against any version of interpreter that supports it. (Not only
      * against the binary available at compile time).
      */
-    if (Tcl_InitStubs(interp, "8.4", 0) == NULL
-	    || Tcl_PkgRequire(interp, "Tcl", "8.4", 0) == NULL) {
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+	return TCL_ERROR;
+    }
+
+    if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
 	return TCL_ERROR;
     }
 
@@ -1794,10 +1797,6 @@ int Dtrace_Init (
     Tcl_InitHashTable(dd->programs, TCL_ONE_WORD_KEYS);
     Tcl_SetAssocData(interp, EXTENSION_NAME, onDestroy, dd);
     Tcl_CreateExitHandler(Dtrace_DeInit, dd);
-
-    if (Tcl_PkgProvide(interp, "dtrace", TCLDTRACE_VERSION) != TCL_OK) {
-	return TCL_ERROR;
-    }
 
     Tcl_Eval(interp, "namespace eval " NS " {}");
 
