@@ -88,6 +88,16 @@ typedef struct ps_prochandle prochandle;
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "HANDLE", NULL);\
 	return TCL_ERROR;\
     }
+#define libError() {\
+    char errnum[16];\
+    \
+    Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",\
+	    dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);\
+    snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));\
+    Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);\
+    \
+    return TCL_ERROR;\
+}
 
 /* }}} */
 
@@ -982,13 +992,15 @@ static int Open (
     hd->handle = dtrace_open(DTRACE_VERSION, flags, &error);
 
     if (hd->handle == NULL) {
+	del_hd(interp, Tcl_NewIntObj(id));
+	/* We have no handle, so libError will not work here. */
 	char errnum[16];
 
-	del_hd(interp, Tcl_NewIntObj(id));
 	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
 		dtrace_errmsg(NULL, error), NULL);
 	snprintf(errnum, 16, "%d", error);
 	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
+
 	return TCL_ERROR;
     }
 
@@ -1204,15 +1216,8 @@ static int Compile (
     ckfree((char*) argv);
 
     if(pd->compiled == NULL) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
 	ckfree((char*) pd);
-	return TCL_ERROR;
+	libError();
     }
 
     Tcl_SetObjResult(interp, register_pd(interp, hd, pd));
@@ -1391,14 +1396,7 @@ static int Go (
     }
 
     if (dtrace_go(hd->handle) == -1) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     for (i = 0; i < hd->proc_count; i++)
@@ -1433,14 +1431,7 @@ static int Stop (
     handleCheck();
 
     if (dtrace_stop(hd->handle) == -1) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     return TCL_OK;
@@ -1486,14 +1477,7 @@ static int Process (
     }
 
     if (dtrace_work(hd->handle, NULL, chew, chewrec, hd) == -1) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     return TCL_OK;
@@ -1573,14 +1557,7 @@ static int Aggregations (
     hd->agg.list = Tcl_NewListObj(0, NULL);
     /* Content appended within the callback. */
     if (dtrace_aggregate_print(hd->handle, NULL, NULL) == -1) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(NULL, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     Tcl_SetObjResult(interp, hd->agg.list);
@@ -1624,14 +1601,7 @@ static int Grab (
 
     proc = dtrace_proc_grab(hd->handle, pid, 0);
     if (proc == NULL) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     /* Process grabbed. Now we need to record it inside handle data. This is
@@ -1686,14 +1656,7 @@ static int Launch (
     ckfree((char*)argv);
 
     if (proc == NULL) {
-	char errnum[16];
-
-	Tcl_AppendResult(interp, COMMAND, " libdtrace error: ",
-		dtrace_errmsg(hd->handle, dtrace_errno(hd->handle)), NULL);
-	snprintf(errnum, 16, "%d", dtrace_errno(hd->handle));
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "LIB", errnum, NULL);
-
-	return TCL_ERROR;
+	libError();
     }
 
     /* Process grabbed. Now we need to record it inside handle data. This is
