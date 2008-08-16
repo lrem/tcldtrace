@@ -72,6 +72,18 @@ typedef struct ps_prochandle prochandle;
     }\
 }
 
+/* Next three are used throughout the command implementations. These do not 
+ * need to be implemented as macros because of performance reasons. It's 
+ * rather because we need them to return the calling function.
+ */
+#define objcCheck(arguments, successCondition)\
+    if (!(successCondition)) {\
+	Tcl_WrongNumArgs(interp, 1, objv, arguments);\
+	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);\
+	return TCL_ERROR;\
+    }
+
+
 /* }}} */
 
 /* Helpers {{{ */
@@ -937,6 +949,7 @@ static int Open (
     int i;
     handle_data *hd;
 
+    /* Can't use the objcCheck macro here, as it's a more complicated case.*/
     if (objc > 1 && objc % 2 == 0) {
 	int instrument;
 
@@ -1035,11 +1048,7 @@ static int Close (
     handle_data *hd;
     int i;
 
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle", objc == 2);
 
     hd = get_hd(interp, objv[1]);
 
@@ -1083,11 +1092,8 @@ int Configure (
     handle_data *hd;
     int i;
 
-    if (objc % 2 == 1 && objc != 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle ?option value ...?");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle ?option value ...?", objc % 2 == 0 || objc == 3);
+
     hd = get_hd(interp, objv[1]);
     if (hd == NULL || hd->handle == NULL) {
 	Tcl_AppendResult(interp, COMMAND, " bad handle", NULL);
@@ -1176,12 +1182,7 @@ static int Compile (
     int argc;
     char **argv;
 
-    if (objc < 3) {
-	Tcl_WrongNumArgs(interp, 1, objv,
-		"handle program ?argument0 argument1 ...?");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle program ?argument0 argument1 ...?", 3 <= objc);
 
     hd = get_hd(interp, objv[1]);
 
@@ -1249,11 +1250,8 @@ static int Exec_or_Info (
     Tcl_Obj *results[8];
     int exec_result;
 
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    
+    objcCheck("compiled_program", objc==2);
 
     pd = get_pd(interp, objv[1]);
     if (pd == NULL) {
@@ -1360,12 +1358,8 @@ static int Go (
     handle_data *hd;
     int i;
 
-    if (objc < 2 || objc % 2 == 1) {
-	Tcl_WrongNumArgs(interp, 1, objv,
-		"handle ?callback {proc ?arg?} ...?");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle ?callback {proc ?arg?} ...?", 2 <= objc 
+	    && objc % 2 == 0);
 
     hd = get_hd(interp, objv[1]);
 
@@ -1447,11 +1441,7 @@ static int Stop (
 {
     handle_data *hd;
 
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle", objc == 2);
 
     hd = get_hd(interp, objv[1]);
 
@@ -1496,11 +1486,7 @@ static int Process (
     handle_data *hd;
     int sleep = 0;
 
-    if (objc < 2 || objc > 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle ?sleep?");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle ?sleep?", 2 <= objc && objc <= 3);
 
     hd = get_hd(interp, objv[1]);
 
@@ -1558,12 +1544,7 @@ static int List (
     program_data *pd;
     list_arg arg;
 
-    if (objc != 4) {
-	Tcl_WrongNumArgs(interp, 1, objv, "compiled_program"
-		" list_callback arg");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("compiled_program list_callback arg", objc == 4);
 
     pd = get_pd(interp, objv[1]);
     if (pd == NULL) {
@@ -1611,12 +1592,8 @@ static int Aggregations (
 {
     handle_data *hd;
 
-    if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
-
+    objcCheck("handle", objc == 2);
+ 
     hd = get_hd(interp, objv[1]);
     if (hd == NULL || hd->handle == NULL) {
 	Tcl_AppendResult(interp, COMMAND,  " bad handle", NULL);
@@ -1664,11 +1641,7 @@ static int Grab (
     pid_t pid;
     long lpid;
 
-    if (objc != 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle pid");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle pid", objc == 3);
 
     hd = get_hd(interp, objv[1]);
     if (hd == NULL || hd->handle == NULL) {
@@ -1734,11 +1707,7 @@ static int Launch (
     char **argv;
     int i;
 
-    if (objc < 3) {
-	Tcl_WrongNumArgs(interp, 1, objv, "handle cmd");
-	Tcl_SetErrorCode(interp, ERROR_CLASS, "USAGE", NULL);
-	return TCL_ERROR;
-    }
+    objcCheck("handle cmd", 3 <= objc);
 
     hd = get_hd(interp, objv[1]);
     if (hd == NULL || hd->handle == NULL) {
