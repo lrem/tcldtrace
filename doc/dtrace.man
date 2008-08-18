@@ -1,0 +1,567 @@
+[comment {-*- tcl -*- doctools}]
+[manpage_begin dtrace n 0.4]
+[copyright {2008 Remigiusz 'lRem' Modrzejewski}]
+[moddesc   {TclDTrace extension}]
+[titledesc {TclDTrace extension: Tcl front-end to the DTrace facility}]
+[require Tcl]
+[require dtrace]
+[description]
+
+DTrace is a system profiling suite created by Sun Microsystems. It allows the
+user to profile a program without modifying its text, or even without the need
+to distract it if it is running. It consists of a set of library hooks called
+[emph providers], a set of tools, a C API (libdtrace) and its own specially
+crafted scripting language called D.
+
+[para]
+
+[package TclDTrace] is a Tcl binding to libdtrace. It allows users to run
+D scripts and process their results directly from Tcl. Together with DTrace
+providers already present in Tcl, it forms an efficient and convenient
+tool for performance analysis and has the potential to increase the
+productivity of Tcl developers.
+
+[section Commands]
+
+All [package TclDTrace] commands are in the [namespace dtrace] namespace.
+
+[list_begin definitions]
+
+[call [cmd dtrace::open] [opt "[option -option] [arg value] ..."] [opt [arg instrument]]]
+
+Returns [arg handle]. Opens DTrace. If everything went OK, then [arg handle]
+gets returned. If [arg instrument] is 0, then no instrumentation will be
+possible. This can be useful to just check if a script compiles.
+Initial configuration options may be passed, see the [cmd dtrace::configure]
+call below for the options.
+[para]
+Side note: the name [emph open] is derived from the fact that it internally
+opens [emph /dev/dtrace/] devices.
+
+[call [cmd dtrace::configure] [arg handle]]
+
+Closes DTrace. Tidies up. If you forget to do it, it will be fired
+automatically on Tcl exit. Calling this explicitly when your program is running
+may come handy if you want to release resources - this is the only way to free
+claimed memory.
+
+[call [cmd dtrace::configure] [arg handle]]
+[call [cmd dtrace::configure] [arg handle] [option -option]]
+[call [cmd dtrace::configure] [arg handle] [option -option] [arg value] [opt "[option -option] [arg value] ..."]]
+
+If no options are supplied, the command returns a list containing alternating
+option names and values. If [option -option] is supplied but no [arg value]
+then the command returns the current value of the given option.  If one or more
+pairs of [option -option] and [arg value] are supplied, the command sets each
+of the named [option -option]s to the corresponding [arg value]; in this case
+the return value is an empty string.
+[para]
+For binary options you can use the values [emph 1] and [emph 0]. For complete
+options list consider [uri {http://dev.lrem.net/tcldtrace/wiki/LibDtrace#Options} {LibDTrace Options}] -
+note that you can use every option of the underlaying libdtrace api, just
+prepend it with a [emph -].
+[para]
+List of basic options (these get returned in the alternating list by the first
+type of invocation):
+
+[list_begin options]
+[opt_def [option -flowindent] 1/0]
+
+Makes libdtrace handle flow indenting.
+
+[opt_def [option -quiet] 1/0]
+
+Sets quiet mode.
+
+[opt_def [option -bufsize] integer]
+
+Sets the buffer size.
+
+[opt_def [option -libdir] string]
+
+Set path for DTrace libraries.
+
+[opt_def [option -foldpdesc] 1/0]
+
+Whether probe descriptions should be folded into a string (on 1), or given as
+an alternating list (on 0). See [sectref Callbacks]. This is TclDTrace specific
+and defaults to 1.
+
+[opt_def [option -arch] string]
+
+[emph "SPECIFIC TO MAC OS X"]: The target architecture, possible values [emph \
+"i386/x86_64/ppc/ppc64"]. This should be given during initial configuration (see
+[cmd dtrace::open]).
+
+[list_end]
+[para]
+libdtrace options may also be changed from within the scripts using a [emph \
+"#pragma directive"].
+[para]
+Lear more: [uri {http://docs.sun.com/app/docs/doc/817-6223/chp-opt?l=en&q=pragma&a=view} {Solaris Dynamic Tracing Guide}]
+
+[call [cmd dtrace::grab] [arg handle] [arg pid]]
+
+Grabs the process identified by [arg pid]. If it's a first call to [cmd \
+dtrace::grab], then the [emph {$target}] macro will be set to [arg pid]. You
+should run [cmd dtrace::go] quickly, as it's the command to continue the
+grabbed processes.
+
+[call [cmd dtrace::launch] [arg handle] [arg cmd]]
+
+This creates a grabbed process by executing [arg cmd] and grabbing it
+immediately. Unlike a call to Tcl's [cmd exec] and then [cmd dtrace::grab],
+this does not create race conditions. Like in [cmd dtrace::grab], process is
+continued on [cmd dtrace::go].
+
+[call [cmd dtrace::compile] [arg handle] [arg program] [opt "[arg argument0] [arg argument1] ..."]]
+
+Compiles D [arg program], which should be in the same format as a file passed
+to [emph "dtrace(1) -s"]. You can pass additional [arg string] arguments to the
+program. Returns a handle [arg compiled_program] if successful.
+
+[call [cmd dtrace::exec] [arg compiled_program]]
+
+Executes the [arg compiled_program] (enables instrumentation points). This
+might be called multiple times, all the programs will get run (i.e. generate
+data for processing) after [cmd dtrace::go]. Returns an alternating name/value
+list of program info:
+
+[list_begin options]
+[opt_def [option aggregates] int]
+
+the number of aggregates associated with this program
+
+[opt_def [option recgens] int]
+
+the number of record generating probes associated with this program
+
+[opt_def [option matches] int]
+
+the number of probes matched by this program
+
+[opt_def [option speculations] int]
+
+the number of speculations specified by this program
+ 
+[list_end]
+
+[call [cmd dtrace::info] [arg compiled_program]]
+
+Returns an alternating name/value list of program info for the [arg \
+compiled_program] (this is the same as previous call, but it doesn't enable the
+instrumentation - can be used for handles with [arg instrument] set to 0):
+
+[list_begin options]
+[opt_def [option aggregates] int]
+
+the number of aggregates associated with this program
+
+[opt_def [option recgens] int]
+
+the number of record generating probes associated with this
+
+[opt_def [option matches] int]
+
+the number of probes matched by this program
+
+[opt_def [option speculations] int]
+
+the number of speculations specified by this program
+ 
+[list_end]
+
+[call [cmd dtrace::go] [arg handle] [opt "[arg callback] {[arg proc] [opt [arg arg]]} ..."]]
+
+Enables tracing. This is more or less equal to actually running the executed
+programs - without it you will not get any data from them. Furthermore this
+command continues the grabbed processes.
+[para]
+It also registers callbacks. For each callback you need to specify a list
+containing the callback proc name and possible additional argument. Learn more
+about callbacks at [sectref Callbacks]. Possible callbacks names are:
+[list_begin itemized]
+[item] [cmd probe_desc]
+[item] [cmd probe_output]
+[item] [cmd drop]
+[item] [cmd error]
+[item] [cmd proc]
+[list_end]
+
+[call [cmd dtrace::stop] [arg handle]]
+
+Stops things ticking. 
+
+[call [cmd dtrace::process] [arg handle] [opt [arg sleep]]]
+
+If [arg sleep] is set to 1 sleeps a while. Wakes up if something interesting
+happens. Note that eventually it will not be necessary to use this kind of
+sleeping - event loop will do. But, at the moment, you need to manually
+schedule [cmd dtrace::process] frequently enough to avoid drops (buffer holds
+around 60K records), or even DTrace aborting (after 30secs without a call to
+[cmd dtrace::process]). This should change in future versions.
+[para]
+This command triggers processing data accumulated in the buffer. For each
+record a relevant [sectref Callbacks] is called.
+
+[call [cmd dtrace::aggregations] [arg handle]]
+
+Returns a list containing alternating tuple - value pairs. Tuples are what is
+found in script between [lb] and [rb]. In this list, each tuple is represented
+by a simple list, whose members are the tuple members, divided by [emph ,] in D
+code. Values are simple numerics. [cmd dtrace::aggregations] output can (and
+should) be interpreted as a Tcl dict.
+
+[call [cmd dtrace::list] [arg compiled_program] [arg list_callback] [arg handle]]
+
+For each of the probes matched by the [arg compiled_program], runs the [arg \
+list_callback].
+
+[list_end]
+
+[section Callbacks]
+
+[list_begin definitions]
+
+[call [cmd list_callback] [arg probe] [arg arg]]
+
+This returns a probe description. If [option -foldpdesc] is set to 1, it is a
+single string with format [emph {[[[provider:] module:]
+function:] name [[predicate] action]}]. If [option -foldpdesc] is
+set to 0, this is an alternating list containing:
+[list_begin options]
+[opt_def [option id] int]
+
+the numerical probe id
+
+[opt_def [option provider] string]
+
+the provider
+
+[opt_def [option module] string]
+
+the module
+
+[opt_def [option function] string]
+
+the function
+ 
+[opt_def [option name] string]
+
+the name
+
+[list_end]
+
+[call [cmd probe_desc] [arg probe] [arg cpu] [arg id] [arg arg]]
+
+This is called for each firing probe.
+
+Meaning of the arguments:
+[list_begin definitions]
+[def [arg probe]]
+
+the probe description string (see [cmd list_callback])
+
+[def [arg cpu]]
+
+on which cpu did the probe fire
+
+[def [arg id]]
+
+the probe id number
+
+[def [arg arg]]
+
+extra argument, empty string if none
+
+[list_end]
+
+[call [cmd probe_output] [arg probe] [arg cpu] [arg id] [arg arg] [arg type] [arg data]]
+
+This is called for each probe that produced some output. That may be just a
+trace, printfed string or a stack. At present the output is returned directly
+as the string given by libdtrace and needs to be parsed by the user.
+
+Meaning of the arguments:
+[list_begin definitions]
+[def [arg probe]]
+
+the probe description string (see [cmd list_callback])
+
+[def [arg cpu]]
+
+on which cpu did the probe fire
+
+[def [arg id]]
+
+the probe id number
+
+[def [arg arg]]
+
+extra argument, empty string if none
+
+[def [arg type]]
+
+the output type (see [uri {http://dev.lrem.net/tcldtrace/wiki/LibDtrace#Bufferedoutput} {LibDTrace Buffered Output}]),
+without the [emph DTRACEACT_] prefix.
+
+[def [arg data]]
+
+the actual output data
+
+[list_end]
+[para]
+Some of the most interesting output types are:
+[list_begin definitions]
+[def USTACK]
+
+result of ustack()
+
+[def JSTACK]
+
+result of jstack()
+
+[def STACK]
+
+result of stack()
+
+[def PRINTF]
+
+result of printf()
+
+[list_end]
+
+
+[call [cmd drop] [arg cpu] [arg kind] [arg count] [arg message] [arg arg]]
+
+Meaning of the arguments:
+[list_begin definitions]
+[def [arg cpu]]
+
+on which cpu did the drop occur
+
+[def [arg kind]]
+
+what kind of drop it is (see below)
+
+[def [arg messge]]
+
+message preconstructed for you by libdtrace
+
+[def [arg arg]]
+
+extra argument, empty string if none
+
+[list_end]
+
+Kind is a string meaning:
+[list_begin definitions]
+[def AGGREGATION]
+
+drop to aggregation buffer
+
+[def DYNAMIC]
+
+dynamic drop
+
+[def DYNRINSE]
+
+dyn drop due to rinsing
+
+[def DYNDIRTY]
+
+dyn drop due to dirty
+
+[def SPEC]
+
+speculative drop
+
+[def SPECBUSY]
+
+spec drop due to busy
+
+[def SPECUNAVAIL]
+
+spec drop due to unavail
+
+[def STKSTROVERFLOW]
+
+stack string tab overflow
+
+[def DBLERROR]
+
+error in ERROR probe
+
+[list_end]
+
+[call [cmd error] [arg probe] [arg cpu] [arg message] [arg arg]]
+
+Meaning of the arguments:
+[list_begin definitions]
+[def [arg probe]]
+
+the probe description string (see [cmd list_callback])
+
+[def [arg cpu]]
+
+on which cpu did the probe fire
+
+[def [arg message]]
+
+message preconstructed for you by libdtrace
+
+[def [arg arg]]
+
+extra argument, empty string if none
+
+[list_end]
+
+[call [cmd proc] [arg pid] [arg message] [arg arg]]
+
+Meaning of the arguments:
+[list_begin definitions]
+[def [arg pid]]
+
+pid of the process the message is about
+
+[def [arg messge]]
+
+message preconstructed for you by libdtrace
+
+[def [arg arg]]
+
+extra argument, empty string if none
+
+[list_end]
+
+[list_end]
+
+[section Examples]
+
+[subsection "Basic Sample Program"]
+
+[example {
+package require Tcl 8.5
+package require dtrace
+
+# Display instructions
+puts {Please input probes in the standard one-liner format:}
+puts {[[[provider:] module:] function:] name [[predicate] action]}
+puts {Empty probe (just enter) ends the input,}
+
+# Get sources
+set probes_sources [list]
+set probes_count 1
+puts "probe $probes_count:"
+gets stdin probe_line
+while {$probe_line != ""} {
+        set probes_sources [linsert $probes_sources end $probe_line]
+        set probes_count [expr {$probes_count + 1}]
+        puts "probe $probes_count:"
+        gets stdin probe_line
+}
+set probes_count [expr {$probes_count - 1}]
+
+# Get them compiled and executed
+set dhandle [dtrace open -foldpdesc 1]
+set OK_count 0
+set i 1
+set compiled_probes [list]
+foreach probe_line $probes_sources {
+        if { [ catch {
+                puts -nonewline "Processing probe $i: $probe_line "
+                set i [expr {$i + 1}]
+                puts -nonewline .
+                set compiled [dtrace compile $dhandle $probe_line]
+                puts -nonewline .
+                set running [dtrace exec $compiled]
+                puts -nonewline .
+                set OK_count [expr {$OK_count + 1}]
+                puts -nonewline " OK"
+        } ] } { puts -nonewline "FAILED"}
+        puts {}
+}
+if {$OK_count == 0} {
+        puts "No probes run - exiting."
+        dtrace close $dhandle
+        exit
+}
+
+# Simple to show the output
+puts "CPU\tProbe"
+proc callback {probe cpu id args} {
+        puts "$cpu\t$probe"
+}
+
+# Go go go!
+dtrace go $dhandle probe_desc {callback {}}
+set counter 10
+while {$counter} {
+        dtrace process $dhandle 1
+        set counter [expr {$counter - 1}]
+}
+dtrace stop $dhandle
+dtrace close $dhandle
+}]
+
+[subsection "Network DTrace Server"]
+
+One of the good features of Tcl is really easy networking. So here you go: an
+example of how easy it is to create a telnet-operated DTrace server for
+multiple clients.
+[para]
+Usage: Run the script with DTrace privileges. Then connect to the port 1986
+with something telnet-compatible. Now you can enter your script. Enter a line
+containing just GO to finish and enable tracing. Disconnect (close the
+application) to finish - the server cleans up by itself.
+
+[example {
+package require Tcl 8.5
+package require dtrace
+
+proc accept {sock addr port} {
+    global handles scripts
+    set handles($sock) [::dtrace::open -foldpdesc 1]
+    set scripts($sock) ""
+    fconfigure $sock -buffering line
+    fileevent $sock readable [list receive $sock $addr $port]
+    puts "Client connected from $addr:$port"
+}
+
+proc receive {sock addr port} {
+    global handles scripts
+    if {[eof $sock] || [catch {gets $sock line}]} {
+        close $sock
+        ::dtrace::close $handles($sock)
+        unset handles($sock) scripts($sock)
+        puts "Client $addr:$port disconnected"
+    } else {
+        if {[string equal $line "GO"]} {
+            ::dtrace::exec [::dtrace::compile $handles($sock) $scripts($sock)]
+            ::dtrace::go $handles($sock) probe_desc [list callback $sock]
+            puts $sock "CPU\tid\tprobe"
+            dtraceLoop $sock
+            puts "Tracing for $addr:$port started"
+        } else {
+            set scripts($sock) "$scripts($sock)\n$line"
+        }
+    }
+}
+
+proc callback {probe cpu id sock} {
+    puts $sock "$cpu\t$id\t$probe"
+}
+
+proc dtraceLoop {sock} {
+    global handles
+    catch {::dtrace::process $handles($sock)}
+    after 300 dtraceLoop $sock
+}
+
+socket -server accept 1986
+vwait forever
+}]
+
+[see_also dtrace(1)]
+[keywords dtrace]
+[manpage_end]
