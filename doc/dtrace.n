@@ -35,7 +35,6 @@ dtrace \- TclDTrace extension
 \fB::dtrace::list\fR \fIcompiled_program list_callback arg\fR
 .br 
 .SH "COMMANDS"
-
 \fB::dtrace::open\fR \fI?\-option value \-option value...? ?instrument?\fR
 
 Returns: \fIhandle\fR. Opens DTrace. If everything went OK, then \fIhandle\fR gets returned. If \fIinstrument\fR is 0, then no instrumentation will be possible. This can be useful if all you want to do is just check whether your scripts compile well. You may also pass some options for initial configuration. See the \fB::dtrace::configure\fR call below for the options.
@@ -55,7 +54,7 @@ If no options are supplied, the command returns a list containing alternating op
 For binary options you can use the values \fI1\fR and \fI0\fR. For complete options list consider http://dev.lrem.net/tcldtrace/wiki/LibDtrace#Options \- note that you can use every option of the underlaying [wiki:LibDtrace libdtrace] api, just prepend it with a '\-'. 
 
 List of basic options (these get returned in the alternating list by the first type of invocation):
-.br
+.br 
   \fBname\fR         \fBtype\fR      \fBexplanation\fR                                                        
 .br 
   \-flowindent  \fI1/0\fR       Makes [wiki:LibDtrace libdtrace] handle flow indenting.               
@@ -147,7 +146,6 @@ Returns a list containing alternating tuple \- value pairs. Tuples are what is f
 For each of the probes matched by the \fIcompiled_program\fR runs the \fIlist_callback\fR.
 
 .SH "CALLBACKS"
-
 \fBlist_callback\fR \fIprobe\fR \fIarg\fR
 
 This simply gives us a probe description. If \fI\-foldpdesc\fR is set to 1, this is a single string. It's format is [[[provider:] module:] function:] name [[predicate] action] according to the man page, note that provider, module, function and name can be left blank to match all strings, and globbing can be used with '*' to match any part of a string. If \fI\-foldpdesc\fR is set to 0, this is an alternating list containing:
@@ -278,3 +276,13 @@ Meaning of the arguments:
   arg         extra argument, empty string if none                                              
 .br 
 
+.SH "BUGS & LIMITATIONS"
+There is one known bug \- this page is ugly, badly formatted and temporary. If you spot any other bug, please report it with \fIhttp://dev.lrem.net/tcldtrace/newticket\fR. Make sure you have a supported version and that there is no ticket regarding same bug with \fIhttp://dev.lrem.net/tcldtrace/report/1\fR.
+
+Known limitations:
+ * does not support claiming annonymous state
+ * is not 100% event loop friendly \- you have to frequently schedule \fB::dtrace::process\fR on your own
+.SH "AUTHORS"
+TclDTrace is created by Remigiusz 'lRem' Modrzejewski, sponsored by Google as a part of Summer of Code program.
+
+Minor parts of code, the TEA buildsystem and a lot of most useful advice contributed by Daniel A. Steffen
