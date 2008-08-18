@@ -269,7 +269,7 @@ test "aggregations-1.2" "too much arguments for aggregations" -body {
 -result {wrong # args: should be "::dtrace::aggregations handle"}
 
 test "aggregations-1.3" "aggregations with invalid handle" -body {
-	::dtrace::aggregations -1 
+	::dtrace::aggregations -1
 } -returnCodes {1} -result {::dtrace::aggregations bad handle}
 
 # }}}
@@ -394,7 +394,7 @@ test "exec-2.2" "entries count" -constraints {tracePrivs} -setup {
 	lindex [::dtrace::exec $p] 5
 } -cleanup {
 	::dtrace::close $h
-} -match regexp -result {[1-9][0-9]+}  
+} -match regexp -result {[1-9][0-9]+}
 # Multiple matches
 
 # }}}
@@ -407,7 +407,7 @@ test "go-2.1" "simply go" -constraints {tracePrivs} -setup {
 	::dtrace::go $h
 } -cleanup {
 	::dtrace::close $h
-} 
+}
 
 test "go-2.2" "go and register all callbacks" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open]
@@ -448,7 +448,7 @@ test "stop-2.2" "simply stop" -constraints {tracePrivs} -setup {
 
 test "process-2.1" "fire the BEGIN probe" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 1]
-	set p [::dtrace::compile $h {:::BEGIN}]	
+	set p [::dtrace::compile $h {:::BEGIN}]
 	::dtrace::exec $p
 	proc cb_probe_desc {probe cpu id args} {
 		set ::result $probe
@@ -465,7 +465,7 @@ test "process-2.1" "fire the BEGIN probe" -constraints {tracePrivs} -setup {
 
 test "process-2.2" "probe_desc unfolded" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0]
-	set p [::dtrace::compile $h {:::BEGIN}]	
+	set p [::dtrace::compile $h {:::BEGIN}]
 	::dtrace::exec $p
 	proc cb_probe_desc {probe cpu id args} {
 		set ::result $probe
@@ -485,7 +485,7 @@ test "process-2.2" "probe_desc unfolded" -constraints {tracePrivs} -setup {
 
 test "process-3.1" "trace the BEGIN probe" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 1]
-	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]	
+	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]
 	::dtrace::exec $p
 	proc cb_probe_output {probe cpu id args type output} {
 		set ::result [list $probe $type $output]
@@ -501,7 +501,7 @@ test "process-3.1" "trace the BEGIN probe" -constraints {tracePrivs} -setup {
 
 test "process-3.2" "probe_output unfolded" -constraints {tracePrivs} -setup {
 	set h [::dtrace::open -foldpdesc 0]
-	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]	
+	set p [::dtrace::compile $h {:::BEGIN {trace("NIGEB");}}]
 	::dtrace::exec $p
 	proc cb_probe_output {probe cpu id args type output} {
 		set ::result [list $probe $type $output]
@@ -580,9 +580,9 @@ test "aggregations-2.1" "aggregations" -constraints {tracePrivs} -setup {
 			@agg2["bar", "baz"] = sum(1);
 			@agg3["bar", "baz", "bam"] = sum(1);
 		}
-	} ]	
+	} ]
 	::dtrace::exec $p
-	::dtrace::go $h 
+	::dtrace::go $h
 	::dtrace::process $h 1
 } -body {
 	::dtrace::aggregations $h
@@ -666,6 +666,93 @@ test "launch-2.2" "test proc callback" -constraints {tracePrivs} -setup {
 } -cleanup {
 	::dtrace::close $h
 } -match regexp -result {[1-9][0-9]*}
+
+# }}}
+
+# Intermediate callback mechanism testing {{{
+
+test "callbacks-1.1" "extra arg for probe_desc" -constraints {tracePrivs}\
+-setup {
+	set h [::dtrace::open]
+	set p [::dtrace::compile $h {:::BEGIN}]
+	::dtrace::exec $p
+	proc callback {probe cpu id arg} {
+		set ::result $arg
+	}
+	::dtrace::go $h probe_desc {callback someArg}
+	set ::result 0
+} -body {
+	::dtrace::process $h 1
+	set ::result
+} -cleanup {
+	::dtrace::close $h
+} -result {someArg}
+
+test "callbacks-1.2" "extra arg for probe_output" -constraints {tracePrivs}\
+-setup {
+	set h [::dtrace::open]
+	set p [::dtrace::compile $h {:::BEGIN {trace(1);}}]
+	::dtrace::exec $p
+	proc callback {probe cpu id arg args} {
+		set ::result $arg
+	}
+	::dtrace::go $h probe_output {callback someArg}
+	set ::result 0
+} -body {
+	::dtrace::process $h 1
+	set ::result
+} -cleanup {
+	::dtrace::close $h
+} -result {someArg}
+
+test "callbacks-1.3" "extra arg for drop" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open -bufsize 128]
+	set p [::dtrace::compile $h {:::}]
+	::dtrace::exec $p
+	proc callback {cpu kind count message arg} {
+		set ::result $arg
+	}
+	::dtrace::go $h drop {callback someArg}
+	set ::result 0
+} -body {
+	::dtrace::process $h 1
+	set ::result
+} -cleanup {
+	::dtrace::close $h
+} -result {someArg}
+
+test "callbacks-1.4" "extra arg for error" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
+	set p [::dtrace::compile $h {:::BEGIN {printf("%s", stringof(NULL));}}]
+	::dtrace::exec $p
+	proc callback {probe cpu message arg} {
+		set ::result $arg
+	}
+	::dtrace::go $h error {callback someArg}
+	set ::result 0
+} -body {
+	::dtrace::process $h 1
+	set ::result
+} -cleanup {
+	::dtrace::close $h
+} -result {someArg}
+
+test "callbacks-1.5" "extra arg for list" -constraints {tracePrivs} -setup {
+	set h [::dtrace::open]
+	set p [::dtrace::compile $h {:::BEGIN}]
+	::dtrace::exec $p
+	proc callback {probe arg} {
+		set ::result $arg
+	}
+	set ::result 0
+} -body {
+	::dtrace::list $p callback someArg
+	set ::result
+} -cleanup {
+	::dtrace::close $h
+} -result {someArg}
+
+
 
 # }}}
 
