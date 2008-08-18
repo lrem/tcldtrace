@@ -15,6 +15,17 @@
 # RCS: @(#) $Id$
 
 #========================================================================
+# Settings for building doc files via tcllib doctools:
+#========================================================================
+
+DOC_SOURCES	= dtrace.man
+DOC_NROFF	= $(DOC_SOURCES:.man=.n)
+DOC_HTML	= $(DOC_SOURCES:.man=.html)
+
+DOCTOOLS	= $(srcdir)/tools/doctools
+MPEXPAND	= DOCTOOLS_NROFF_INCLUDE=$(DOCTOOLS) $(TCLSH) $(DOCTOOLS)/mpexpand
+
+#========================================================================
 # The names of the source files is defined in the configure script.
 # The object files are used for linking into the final library.
 # This will be used when a dist target is added to the Makefile.
@@ -108,7 +119,7 @@ TCL_SRC_DIR	= @TCL_SRC_DIR@
 #========================================================================
 
 EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR)
-TCLLIBPATH	= $(top_builddir)
+TCLLIBPATH	= $(top_builddir) $(DOCTOOLS)
 TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library`
 PKG_ENV		= @LD_LIBRARY_PATH_VAR@="$(EXTRA_PATH):$(@LD_LIBRARY_PATH_VAR@)" \
 		  PATH="$(EXTRA_PATH):$(PATH)" \
@@ -165,7 +176,7 @@ libraries:
 # end user machine when building from source.
 #========================================================================
 
-doc:
+doc: $(DOC_NROFF) $(DOC_HTML)
 
 install: all install-binaries install-doc
 
@@ -192,9 +203,10 @@ install-libraries: libraries
 install-doc: doc
 	@mkdir -p $(DESTDIR)$(mandir)/mann
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
-	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
+	@list='$(DOC_NROFF)'; for i in $$list; do \
 	    echo "Installing $$i"; \
 	    rm -f $(DESTDIR)$(mandir)/mann/`basename $$i`; \
+	    i="doc/$$i"; test ! -r $$i && i="$(srcdir)/$$i"; \
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
 	done
 
@@ -244,26 +256,32 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 # As necessary, add $(srcdir):$(srcdir)/compat:....
 #========================================================================
 
-VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win
+VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/doc:doc
 
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
+
+.man.n:
+	mkdir -p doc; $(MPEXPAND) nroff `@CYGPATH@ $<` doc/$@
+
+.man.html:
+	mkdir -p doc; $(MPEXPAND) html  `@CYGPATH@ $<` doc/$@
 
 #========================================================================
 # Distribution creation
 # You may need to tweak this target to make it work correctly.
 #========================================================================
 
-COMPRESS	= tar cvf $(PKG_DIR).tar $(PKG_DIR); gzip -9 $(PKG_DIR).tar
+COMPRESS	= tar cvf tcl$(PKG_DIR).tar tcl$(PKG_DIR); gzip -9 tcl$(PKG_DIR).tar
 DIST_ROOT	= /tmp/dist
-DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
+DIST_DIR	= $(DIST_ROOT)/tcl$(PKG_DIR)
 
 dist-clean:
-	rm -rf $(DIST_DIR) $(DIST_ROOT)/$(PKG_DIR).tar.*
+	rm -rf $(DIST_DIR) $(DIST_DIR).tar.*
 
-dist: dist-clean ChangeLog
+dist: dist-clean ChangeLog doc
 	mkdir -p $(DIST_DIR)
-	cp -p $(srcdir)/ChangeLog $(srcdir)/README* $(srcdir)/license* \
+	cp -p $(srcdir)/README* $(srcdir)/license* \
 		$(srcdir)/aclocal.m4 $(srcdir)/configure $(srcdir)/*.in \
 		$(DIST_DIR)/
 	chmod 664 $(DIST_DIR)/Makefile.in $(DIST_DIR)/aclocal.m4
@@ -284,7 +302,7 @@ dist: dist-clean ChangeLog
 	chmod 664 $(DIST_DIR)/tclconfig/tcl.m4
 	chmod +x $(DIST_DIR)/tclconfig/install-sh
 
-	list='demos doc library tests darwin solaris'; \
+	list='demos library tests darwin solaris'; \
 	for p in $$list; do \
 	    if test -d $(srcdir)/$$p ; then \
 		mkdir $(DIST_DIR)/$$p; \
@@ -292,10 +310,29 @@ dist: dist-clean ChangeLog
 	    fi; \
 	done
 
+	list='ChangeLog'; \
+	for i in $$list; do \
+	    test ! -r $$i && i="$(srcdir)/$$i"; \
+	    if test -r $$i; then \
+		cp -p $$i $(DIST_DIR)/; \
+	    fi; \
+	done
+
+	list='$(DOC_NROFF) $(DOC_HTML)'; \
+	for i in $$list; do \
+	    i="doc/$$i"; test ! -r $$i && i="$(srcdir)/$$i"; \
+	    if test -r $$i; then \
+		mkdir -p $(DIST_DIR)/doc; \
+		cp -p $$i $(DIST_DIR)/doc/; \
+	    fi; \
+	done
+
 	(cd $(DIST_ROOT); $(COMPRESS);)
 
 ChangeLog::
-	cd $(srcdir); svn2cl -r BASE:9 -a -i --reparagraph || touch $@
+	p=`pwd`; cd $(srcdir); (test -d .svn && \
+	svn2cl -r BASE:9 -a -i --reparagraph -o $$p/$@ &>/dev/null) \
+	|| test -r $@
 
 #========================================================================
 # End of user-definable section
@@ -310,6 +347,10 @@ clean:
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+	-@test -r "$(srcdir)/ChangeLog" || rm -f ChangeLog
+	-@list='$(DOC_NROFF) $(DOC_HTML)'; for i in $$list; do \
+	    i="doc/$$i"; test -r "$(srcdir)/$$i" || rm -f "$$i"; done
+	-@rmdir -p doc &>/dev/null | true
 
 distclean: clean
 	-rm -f *.tab.c
@@ -381,7 +422,7 @@ install-bin-binaries: binaries
 	  fi; \
 	done
 
-.SUFFIXES: .c .$(OBJEXT)
+.SUFFIXES: .c .$(OBJEXT) .man .n .html
 
 Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
