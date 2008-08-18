@@ -1,11 +1,280 @@
-.TH dtrace n 4.1 "Tcl-Extensions"
-.HS dtrace tcl
-.BS
-.SH NAME
+.\" .HS dtrace tcl
+.\" .BS
+.TH "dtrace" "n" "4.1" "Tcl-Extensions" ""
+.SH "NAME"
 dtrace \- TclDTrace extension
-.SH SYNOPSIS
-\fBdtrace\fI \fR
+.SH "SYNOPSIS"
+\fB::dtrace::open\fR \fI?\-option value \-option value...? ?instrument?\fR
+.br 
+\fB::dtrace::close\fR \fIhandle\fR
+.br 
+\fB::dtrace::configure\fR \fIhandle\fR
+.br 
+\fB::dtrace::configure\fR \fIhandle option \fR
+.br 
+\fB::dtrace::configure\fR \fIhandle option value ?option value ...?\fR
+.br 
+\fB::dtrace::grab\fR \fIhandle pid\fR
+.br 
+\fB::dtrace::launch\fR \fIhandle cmd\fR
+.br 
+\fB::dtrace::compile\fR \fIhandle program ?argument0 argument1 ...?\fR
+.br 
+\fB::dtrace::exec\fR \fIcompiled_program\fR
+.br 
+\fB::dtrace::info\fR \fIcompiled_program\fR
+.br 
+\fB::dtrace::go\fR  \fIhandle ?callback {proc ?arg?} ...?\fR
+.br 
+\fB::dtrace::stop\fR  \fIhandle\fR
+.br 
+\fB::dtrace::process\fR \fIhandle ?sleep?\fR
+.br 
+\fB::dtrace::aggregations\fR \fIhandle\fR
+.br 
+\fB::dtrace::list\fR \fIcompiled_program list_callback arg\fR
+.br 
+.SH "COMMANDS"
+
+\fB::dtrace::open\fR \fI?\-option value \-option value...? ?instrument?\fR
+
+Returns: \fIhandle\fR. Opens DTrace. If everything went OK, then \fIhandle\fR gets returned. If \fIinstrument\fR is 0, then no instrumentation will be possible. This can be useful if all you want to do is just check whether your scripts compile well. You may also pass some options for initial configuration. See the \fB::dtrace::configure\fR call below for the options.
+
+Side note: the name 'open' is derived from the fact, that it internally opens \fI/dev/dtrace/\fR devices.
+
+\fB::dtrace::close\fR \fIhandle\fR
+
+Closes DTrace. Tidies up. If you forget to do it, it will be fired automatically on Tcl exit. Calling this explicitly when your program is running may come handy if you want to release resources \- this is the only way to free claimed memory.
+
+\fB::dtrace::configure\fR \fIhandle\fR .br 
+\fB::dtrace::configure\fR \fIhandle option \fR .br 
+\fB::dtrace::configure\fR \fIhandle option value ?option value ...?\fR .br 
+
+If no options are supplied, the command returns a list containing alternating option names and values. If \fIoption\fR is supplied but no \fIvalue\fR then the command returns the current value of the given option.  If one or more pairs of \fIoption\fR and \fIvalue\fR are supplied, the command sets each of the named \fIoption\fRs to the corresponding \fIvalue\fR; in this case the return value is an empty string.
+
+For binary options you can use the values \fI1\fR and \fI0\fR. For complete options list consider http://dev.lrem.net/tcldtrace/wiki/LibDtrace#Options \- note that you can use every option of the underlaying [wiki:LibDtrace libdtrace] api, just prepend it with a '\-'. 
+
+List of basic options (these get returned in the alternating list by the first type of invocation):
 .br
-.SH DESCRIPTION
-TclDTrace
-.PP
+  \fBname\fR         \fBtype\fR      \fBexplanation\fR                                                        
+.br 
+  \-flowindent  \fI1/0\fR       Makes [wiki:LibDtrace libdtrace] handle flow indenting.               
+.br 
+  \-quiet       \fI1/0\fR       Sets quiet mode.                                                      
+.br 
+  \-bufsize     \fIinteger\fR   Sets the buffer size.                                                 
+.br 
+  \-libdir      \fIstring\fR    Set path for DTrace libraries.                                        
+.br 
+  \-foldpdesc   \fI1/0\fR     Whether probe descriptions should be folded into a string (on 1), or given as an alternating list (on 0). See CommandsList#Callbacks. This is [wiki:TclDtrace TclDTrace] specific and defaults to 1.  
+.br 
+   \-arch       \fIstring\fR    SPECIFIC TO MAC OSX. The target architecture, possible values \fIi386/x86_64/ppc/ppc64\fR. This should be given during initial configuration (see \fB::dtrace::open\fR).   
+.br 
+
+[wiki:LibDtrace Libdtrace] options may also be changed from within the scripts using \fI#pragma directive\fR. Lear more: http://docs.sun.com/app/docs/doc/817\-6223/chp\-opt?l=en&q=pragma&a=view
+
+\fB::dtrace::grab\fR \fIhandle pid\fR
+
+Grabs the process identified by \fIpid\fR. If it's a first call to \fB::dtrace::grab\fR, then the \fI$target\fR macro will be set to \fIpid\fR.
+You should run \fB::dtrace::go\fR quickly, as it's the command to continue the grabbed processes.
+
+\fB::dtrace::launch\fR \fIhandle cmd\fR
+
+This creates a grabbed process by executing \fIcmd\fR and grabbing it immediately. Unlike a call to Tcl's \fBexec\fR and then \fB::dtrace::grab\fR, this does not create race conditions. Like in \fB::dtrace::grab\fR, process is continued on \fB::dtrace::go\fR.
+
+\fB::dtrace::compile\fR \fIhandle program ?argument0 argument1 ...?\fR
+
+Returns compiled \fIprogram\fR. It should be in the same form that you give to dtrace(1) \fI\-n\fR (that is: [[[provider:] module:] function:] name [[predicate] action] according to the man page, note that provider, module, function and name can be left blank to match all strings, and globbing can be used with '*' to match any part of a string). You can pass additional \fBstring\fR argument to the program. Returns a handle to the compiled program if successful.
+
+\fB::dtrace::exec\fR \fIcompiled_program\fR
+
+Executes the \fIcompiled_program\fR (enables instrumentation points). This might be called multiple times, all the programs get running (generating data for processing) after \fB::dtrace::go\fR. Returns an alternating name/value list of program info:
+
+  \fBname\fR          \fBtype\fR   \fBexplanation\fR                                                      
+.br 
+  aggregates    \fIint\fR    the number of aggregates associated with this program                 
+.br 
+  recgens       \fIint\fR    the number of record generating probes associated with this program   
+.br 
+  matches       \fIint\fR    the number of probes matched by this program                          
+.br 
+  speculations  \fIint\fR    the number of speculations specified by this program                   
+
+
+\fB::dtrace::info\fR \fIcompiled_program\fR
+
+Returns an alternating name/value list of program info for the \fIcompiled_program\fR (this is the same as previous call, but it doesn't enable the instrumentation \- can be used for handles with \fIinstrument\fR set to 0):
+
+  \fBname\fR          \fBtype\fR   \fBexplanation\fR                                                      
+.br 
+  aggregates    \fIint\fR    the number of aggregates associated with this program                 
+.br 
+  recgens       \fIint\fR    the number of record generating probes associated with this program   
+.br 
+  matches       \fIint\fR    the number of probes matched by this program                          
+.br 
+  speculations  \fIint\fR    the number of speculations specified by this program                   
+
+
+\fB::dtrace::go\fR  \fIhandle ?callback {proc ?arg?} ...?\fR
+
+Enables tracing. This is more or less equal to actually running the executed programs \- without it you will not get any data from them. Furthermore this command continues the grabbed processes. 
+
+It also registers callbacks. For each callback you need to specify a list containing the callback proc name and possible additional argument. Learn more about callbacks at CommandsList#Callbacks. Possible callbacks names are:
+ * probe_desc
+ * probe_output
+ * drop
+ * error
+ * proc
+
+
+\fB::dtrace::stop\fR  \fIhandle\fR
+
+Stops things ticking. 
+
+\fB::dtrace::process\fR \fIhandle ?sleep?\fR
+
+If \fIsleep\fR is set to 1 sleeps a while. Wakes up if something interesting happens. Note this is not necessary to use this kind of sleeping \- event loop will do. But, at the moment manually, you need to schedule \fB::dtrace::process\fR frequently to avoid dropping (buffer holds around 60K records), or even DTrace aborting (after 30secs without a call to dtrace_work). This should change in future versions.
+
+This command triggers processing data accumulated in the buffer. For each record a relevant [wiki:CommandsList#Callbacks callback] is called.
+
+\fB::dtrace::aggregations\fR \fIhandle\fR
+
+Returns a list containing alternating tuple \- value pairs. Tuples are what is found in script between [ and ]. In this list, each tuple is represented by a simple list, whose members are the tuple members, divided by ',' i D code. Values are simple numerics. \fB::dtrace::aggregations\fR output can (and should) be interpreted as a dict (see http://www.tcl.tk/man/tcl8.5/TclCmd/dict.htm)
+
+\fB::dtrace::list\fR \fIcompiled_program list_callback arg\fR
+
+For each of the probes matched by the \fIcompiled_program\fR runs the \fIlist_callback\fR.
+
+.SH "CALLBACKS"
+
+\fBlist_callback\fR \fIprobe\fR \fIarg\fR
+
+This simply gives us a probe description. If \fI\-foldpdesc\fR is set to 1, this is a single string. It's format is [[[provider:] module:] function:] name [[predicate] action] according to the man page, note that provider, module, function and name can be left blank to match all strings, and globbing can be used with '*' to match any part of a string. If \fI\-foldpdesc\fR is set to 0, this is an alternating list containing:
+
+ \fBname\fR       \fBtype\fR     \fBexplanation\fR                                                     
+.br 
+ id         \fIint\fR      the numerical probe id                                               
+.br 
+ provider   \fIstring\fR   the provider                                                         
+.br 
+ module     \fIstring\fR   the module                                                           
+.br 
+ function   \fIstring\fR   the function                                                          
+.br 
+ name       \fIstring\fR   the name                                                             
+.br 
+
+
+\fBprobe_desc\fR \fIprobe cpu id arg\fR
+
+This is called for each firing probe.
+
+Meaning of the arguments:
+
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  probe       the probe description string (see \fBlist_callback\fR)                            
+.br 
+  cpu         on which cpu did the probe fire                                                   
+.br 
+  id          the probe id number                                                               
+.br 
+  arg         extra argument, empty string if none                                              
+.br 
+
+\fBprobe_output\fR \fIprobe cpu id arg type data\fR
+
+This is called for each probe that did some output. That may be just a trace, printfed string or a stack. At this moment the output is given directly as the string given by [wiki:LibDtrace libdtrace], it's your thing to parse it.
+
+Meaning of the arguments:
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  probe       the probe description string (see \fBlist_callback\fR)                            
+.br 
+  cpu         on which cpu did the probe fire                                                   
+.br 
+  id          the probe id number                                                               
+.br 
+  arg         extra argument, empty string if none                                              
+.br 
+  type        the output type (see LibDtrace#Bufferedoutput), without the 'DTRACEACT_' prefix   
+.br 
+  data        the actual output data                                                            
+.br 
+
+Some most interesting output types are:
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  USTACK      result of ustack()                                                                
+.br 
+  JSTACK      result of jstack()                                                                
+.br 
+  STACK       result of stack()                                                                 
+.br 
+  PRINTF      result of printf()                                                                
+.br 
+
+
+\fBdrop\fR \fIcpu kind count message arg\fR
+
+Meaning of the arguments:
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  cpu         on which cpu did the drop occur                                                   
+.br 
+  kind        what kind of drop it is (see below)                                               
+.br 
+  messge      message preconstructed for you by [wiki:LibDtrace libdtrace]                      
+.br 
+  arg         extra argument, empty string if none                                              
+.br 
+
+Kind is a string meaning:
+ \fIvalue\fR           \fImeaning\fR                   
+.br 
+ AGGREGATION     drop to aggregation buffer    
+.br 
+ DYNAMIC         dynamic drop                  
+.br 
+ DYNRINSE        dyn drop due to rinsing       
+.br 
+ DYNDIRTY        dyn drop due to dirty         
+.br 
+ SPEC            speculative drop              
+.br 
+ SPECBUSY        spec drop due to busy         
+.br 
+ SPECUNAVAIL     spec drop due to unavail      
+.br 
+ STKSTROVERFLOW  stack string tab overflow     
+.br 
+ DBLERROR        error in ERROR probe          
+.br 
+
+\fBerror\fR \fIprobe cpu message\fR \fIarg\fR
+
+Meaning of the arguments:
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  probe       the probe description string (see \fBlist_callback\fR)                            
+.br 
+  cpu         on which cpu did the probe fire                                                   
+.br 
+  message     message preconstructed for you by [wiki:LibDtrace libdtrace]                      
+.br 
+  arg         extra argument, empty string if none                                              
+.br 
+
+\fBproc\fR \fIpid message\fR \fIarg\fR
+
+Meaning of the arguments:
+  \fBname\fR        \fBexplanation\fR                                                                  
+.br 
+  pid         pid of the process the message is about                                           
+.br 
+  messge      message preconstructed for you by [wiki:LibDtrace libdtrace]                      
+.br 
+  arg         extra argument, empty string if none                                              
+.br 
+
