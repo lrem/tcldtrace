@@ -1,5 +1,5 @@
 [comment {-*- tcl -*- doctools}]
-[manpage_begin dtrace n 0.4]
+[manpage_begin dtrace n 0.5]
 [copyright {2008 Remigiusz 'lRem' Modrzejewski}]
 [moddesc   {TclDTrace extension}]
 [titledesc {TclDTrace extension: Tcl front-end to the DTrace facility}]
